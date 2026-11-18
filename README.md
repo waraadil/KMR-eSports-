@@ -28,7 +28,7 @@ A production-grade, full-stack competitive gaming tournament platform — host a
 
 ```bash
 npm install
-npm run db:seed      # creates ./data/kmr.db with the game catalog & season content
+npm run db:seed      # creates ./data/kmr.db with the game catalog + admin account
 npm run dev
 ```
 

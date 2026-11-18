@@ -210,9 +210,11 @@ async function maybeAutoSeed(client: Client): Promise<void> {
   const rs = await client.execute("SELECT COUNT(*) c FROM users");
   const populated = Number(rs.rows[0]?.c ?? 0) > 0;
   try {
-    const { seedCore, ensureAdmin } = await import("./seed-core");
+    const { seedCore, ensureAdmin, purgeDemoData } = await import("./seed-core");
     if (populated) {
-      // Data already exists — just guarantee an admin login (self-heal).
+      // Existing data — purge any pre-production demo content once, then
+      // guarantee an admin login exists (self-heal).
+      await purgeDemoData(client);
       await ensureAdmin(new Db(Promise.resolve(client)));
       return;
     }

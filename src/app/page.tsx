@@ -48,20 +48,21 @@ export default async function HomePage() {
     getRecentWinners(6),
   ]);
 
+  const marqueeItems: string[] = [
+    ...featured.slice(0, 4).map((t) => `${t.title} — ${t.filled_slots}/${t.max_slots} slots filled`),
+    ...featured.filter((t) => t.status === "LIVE").map((t) => `Live now: ${t.title}`),
+    ...(stats.prize > 0 ? [`${formatINR(stats.prize)} in prizes hosted`] : []),
+    "Escrowed entry fees",
+    "Verified results before every payout",
+    "Winnings in your wallet within 24 hours",
+    "Free-entry community cups",
+  ];
+
   return (
     <PageShell theme="theme-volt">
       <Hero stats={stats} />
 
-      <Marquee
-        items={[
-          "BGMI Winter Clash — 76/100 slots filled",
-          "Live now: CODM Sniper Showdown",
-          "₹1,10,000 prize pool this week",
-          "Free entry: BGMI Solo FPP Rush",
-          "Valorant Neon Nights — 32 team bracket",
-          "Instant wallet payouts",
-        ]}
-      />
+      <Marquee items={marqueeItems} />
 
       {/* featured tournaments */}
       <Section id="featured">
@@ -80,13 +81,31 @@ export default async function HomePage() {
             </Link>
           </div>
         </Reveal>
-        <Stagger className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {featured.map((t) => (
-            <StaggerItem key={t.id}>
-              <TournamentCard t={t} />
-            </StaggerItem>
-          ))}
-        </Stagger>
+        {featured.length > 0 ? (
+          <Stagger className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {featured.map((t) => (
+              <StaggerItem key={t.id}>
+                <TournamentCard t={t} />
+              </StaggerItem>
+            ))}
+          </Stagger>
+        ) : (
+          <Reveal>
+            <div className="card flex flex-col items-center gap-4 py-20 text-center">
+              <p className="font-display text-lg font-bold text-white">Lobbies are being prepped</p>
+              <p className="max-w-sm text-sm leading-relaxed text-zinc-500">
+                The first tournaments of the season drop soon. Create your fighter profile now so
+                you can book a slot the moment registration opens.
+              </p>
+              <Link
+                href="/tournaments"
+                className="btn-ghost mt-2 rounded-full px-6 py-3 font-tech text-[12px] font-semibold uppercase tracking-[0.16em] text-zinc-200"
+              >
+                Browse all tournaments
+              </Link>
+            </div>
+          </Reveal>
+        )}
       </Section>
 
       {/* games */}
