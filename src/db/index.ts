@@ -26,7 +26,11 @@ const LOCAL_PATH = process.env.DATABASE_PATH?.startsWith("/")
   ? process.env.DATABASE_PATH
   : path.join(process.cwd(), process.env.DATABASE_PATH || "./data/kmr.db");
 
-const DB_URL = process.env.DATABASE_URL || `file:${LOCAL_PATH}`;
+// Accept either our names or the ones Vercel's Turso integration injects.
+const DB_URL =
+  process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || `file:${LOCAL_PATH}`;
+const DB_AUTH_TOKEN =
+  process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN || undefined;
 const IS_LOCAL_FILE = DB_URL.startsWith("file:");
 
 function normalizeArgs(args: (SqlParam | Record<string, SqlParam>)[]): InValue[] | Record<string, InValue> {
@@ -140,7 +144,7 @@ function init(): Promise<Client> {
     if (IS_LOCAL_FILE) fs.mkdirSync(path.dirname(LOCAL_PATH), { recursive: true });
     const client = createClient({
       url: DB_URL,
-      authToken: process.env.DATABASE_AUTH_TOKEN || undefined,
+      authToken: DB_AUTH_TOKEN,
     });
     await client.executeMultiple(DDL);
     await maybeAutoSeed(new Db(Promise.resolve(client)));
