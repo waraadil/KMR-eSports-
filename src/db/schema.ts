@@ -131,4 +131,16 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, read);
+
+CREATE TABLE IF NOT EXISTS withdrawals (
+  id           TEXT PRIMARY KEY,
+  user_id      TEXT NOT NULL REFERENCES users(id),
+  amount       INTEGER NOT NULL,
+  upi_id       TEXT NOT NULL,
+  status       TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','PAID','REJECTED')),
+  note         TEXT NOT NULL DEFAULT '',
+  created_at   TEXT NOT NULL,
+  processed_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_wd_status ON withdrawals(status);
 `;

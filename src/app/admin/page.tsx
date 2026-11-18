@@ -7,6 +7,8 @@ import Section from "@/components/site/Section";
 import Reveal from "@/components/motion/Reveal";
 import StatusControl from "@/components/admin/StatusControl";
 import PurgeDemoButton from "@/components/admin/PurgeDemoButton";
+import WithdrawalsPanel, { type WithdrawalRow } from "@/components/admin/WithdrawalsPanel";
+import { getDb } from "@/db";
 import { requireAdmin } from "@/lib/auth";
 import { getAdminOverview, listTournaments } from "@/db/queries";
 import { formatDateTime, formatINR } from "@/lib/format";
@@ -18,6 +20,16 @@ export const metadata = { title: "Admin" };
 export default async function AdminPage() {
   await requireAdmin();
   const [overview, tournaments] = await Promise.all([getAdminOverview(), listTournaments({})]);
+  const withdrawals = await getDb()
+    .prepare(
+      `SELECT w.id, w.amount, w.upi_id, w.status, w.note, w.created_at, w.processed_at,
+              u.username, u.email
+       FROM withdrawals w JOIN users u ON u.id = w.user_id
+       ORDER BY CASE w.status WHEN 'PENDING' THEN 0 ELSE 1 END, w.created_at DESC
+       LIMIT 100`
+    )
+    .all<WithdrawalRow>();
+  const pendingWithdrawals = withdrawals.filter((w) => w.status === "PENDING");
 
   const cards = [
     { label: "Registered players", value: String(overview.players), icon: Users },
@@ -112,6 +124,25 @@ export default async function AdminPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        </Reveal>
+
+        {/* withdrawal settlement queue */}
+        <Reveal delay={0.18}>
+          <div className="card mt-6 p-7 md:p-8">
+            <h2 className="flex items-center gap-2.5 font-display text-lg font-bold text-white">
+              <Wallet size={17} className="text-accent" /> Withdrawal requests
+              {pendingWithdrawals.length > 0 && (
+                <span className="rounded-full bg-accent-soft px-2.5 py-0.5 font-tech text-[10px] font-bold uppercase tracking-wider text-accent">
+                  {pendingWithdrawals.length} pending
+                </span>
+              )}
+            </h2>
+            <p className="mt-2 text-[12.5px] text-zinc-500">
+              Pay the player manually to their UPI ID, then mark as paid. Rejecting refunds the
+              amount to the player&apos;s KMR wallet automatically.
+            </p>
+            <WithdrawalsPanel withdrawals={withdrawals} />
           </div>
         </Reveal>
       </Section>
