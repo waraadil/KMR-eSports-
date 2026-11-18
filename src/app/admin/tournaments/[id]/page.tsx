@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ClipboardList, Layers, Trophy, Users } from "lucide-react";
+import { ArrowLeft, ClipboardList, Layers, Radio, Trophy, Users } from "lucide-react";
 import PageShell from "@/components/site/PageShell";
 import Section from "@/components/site/Section";
 import Reveal from "@/components/motion/Reveal";
 import ResultsForm from "@/components/admin/ResultsForm";
 import MatchManager, { type MatchRow } from "@/components/admin/MatchManager";
+import RoomControl from "@/components/admin/RoomControl";
 import StatusControl from "@/components/admin/StatusControl";
 import { requireAdmin } from "@/lib/auth";
 import { getDb } from "@/db";
@@ -77,6 +78,23 @@ export default async function ManageTournamentPage({ params }: { params: { id: s
                 <div className="flex justify-between"><span className="text-zinc-500">Room</span><span className="font-tech text-[12px] text-zinc-300">{t.room_id ?? "not set"}</span></div>
               </div>
             </div>
+            <Reveal delay={0.09} className="card p-6">
+              <p className="flex items-center gap-2 font-tech text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                <Radio size={13} className="text-accent" /> Room &amp; stream
+              </p>
+              <p className="mt-2 mb-4 text-[12px] text-zinc-500">
+                Create the custom room in-game, paste the details here, then publish — registered
+                players get notified and see the credentials on the tournament page.
+              </p>
+              <RoomControl
+                tournamentId={t.id}
+                initialRoomId={t.room_id}
+                initialRoomPassword={t.room_password}
+                initialStreamUrl={t.stream_url}
+                registrantCount={registrations.length}
+                locked={completed}
+              />
+            </Reveal>
             <Link
               href={`/tournaments/${t.slug}`}
               className="btn-ghost block rounded-full py-3.5 text-center font-tech text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-300"

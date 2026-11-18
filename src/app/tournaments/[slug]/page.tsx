@@ -91,6 +91,16 @@ export default async function TournamentDetailPage({ params }: { params: { slug:
               <span className="rounded-full border border-white/15 bg-black/30 px-3 py-1 font-tech text-[10px] uppercase tracking-[0.18em] text-zinc-300 backdrop-blur">
                 {t.format} · {t.mode}
               </span>
+              {t.stream_url && (
+                <a
+                  href={t.stream_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent-soft px-3 py-1 font-tech text-[10px] font-bold uppercase tracking-[0.18em] text-accent backdrop-blur transition-transform hover:scale-[1.03]"
+                >
+                  <Radio size={11} /> Watch live
+                </a>
+              )}
             </div>
             <h1 className="mt-6 max-w-4xl font-display text-4xl font-bold leading-[1.02] tracking-tightest text-white md:text-[3.6rem]">
               {t.title}
