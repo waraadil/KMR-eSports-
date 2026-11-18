@@ -111,7 +111,7 @@ export default async function TournamentDetailPage({ params }: { params: { slug:
       <Section className="!pt-10">
         <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
           {/* ---------------- main column ---------------- */}
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             <Reveal className="card p-7 md:p-8">
               <h2 className="font-display text-lg font-bold text-white">About this tournament</h2>
               <p className="mt-4 text-[14.5px] leading-relaxed text-zinc-400">{t.description}</p>
@@ -274,7 +274,7 @@ export default async function TournamentDetailPage({ params }: { params: { slug:
           </div>
 
           {/* ---------------- sidebar ---------------- */}
-          <div className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+          <div className="min-w-0 space-y-6 lg:sticky lg:top-24 lg:self-start">
             <Reveal className="card p-6">
               <p className="flex items-center gap-2 font-tech text-[10px] uppercase tracking-[0.2em] text-zinc-500">
                 <Trophy size={13} className="text-accent" /> Prize pool

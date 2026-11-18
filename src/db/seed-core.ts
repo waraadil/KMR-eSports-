@@ -7,6 +7,31 @@ import bcrypt from "bcryptjs";
 import { newId, nowIso, type DbLike } from "./index";
 import { placementPoints, killPoints, CURRENT_SEASON } from "../lib/points";
 
+/**
+ * Guarantees at least one ADMIN login exists. Runs on every cold start, so a
+ * database whose very first seed was interrupted (or that was created before
+ * admin seeding existed) heals itself. Never touches an existing admin.
+ */
+export async function ensureAdmin(db: DbLike): Promise<void> {
+  const hasAdmin = await db.prepare("SELECT id FROM users WHERE role = 'ADMIN' LIMIT 1").get();
+  if (hasAdmin) return;
+  const email = (process.env.ADMIN_EMAIL ?? "admin@kmr.gg").toLowerCase();
+  const password = process.env.ADMIN_PASSWORD ?? "Admin@123";
+  const byEmail = await db.prepare("SELECT id FROM users WHERE email = ?").get<{ id: string }>(email);
+  if (byEmail) {
+    await db.prepare("UPDATE users SET role = 'ADMIN' WHERE id = ?").run(byEmail.id);
+    console.log(`[KMR] promoted ${email} to ADMIN`);
+    return;
+  }
+  await db
+    .prepare(
+      `INSERT INTO users (id, email, username, password_hash, role, avatar_color, bio, wallet_balance, created_at)
+       VALUES (?, ?, ?, ?, 'ADMIN', '#fb7185', 'Tournament operations @ KMR eSports', 0, ?)`
+    )
+    .run(newId("usr"), email, "KMR_Admin", bcrypt.hashSync(password, 10), nowIso());
+  console.log(`[KMR] admin account restored (${email})`);
+}
+
 export async function seedCore(db: DbLike): Promise<void> {
   await db.transaction(async (tx) => {
 
