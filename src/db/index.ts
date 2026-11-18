@@ -73,6 +73,17 @@ class Stmt {
 
 const txStore = new AsyncLocalStorage<Db>();
 
+/** Minimal structural surface used by the seed (satisfied by Db and BatchDb). */
+export type StmtLike = {
+  run(...args: (SqlParam | Record<string, SqlParam>)[]): Promise<unknown>;
+  get<T = unknown>(...args: (SqlParam | Record<string, SqlParam>)[]): Promise<T | undefined>;
+  all<T = unknown>(...args: (SqlParam | Record<string, SqlParam>)[]): Promise<T[]>;
+};
+export type DbLike = {
+  prepare(sql: string): StmtLike;
+  transaction<T>(fn: (db: DbLike) => Promise<T>): Promise<T>;
+};
+
 export class Db {
   constructor(private clientReady: Promise<Client>) {}
 
@@ -147,20 +158,61 @@ function init(): Promise<Client> {
       authToken: DB_AUTH_TOKEN,
     });
     await client.executeMultiple(DDL);
-    await maybeAutoSeed(new Db(Promise.resolve(client)));
+    await maybeAutoSeed(client);
     return client;
   })();
   return _init;
 }
 
-async function maybeAutoSeed(db: Db): Promise<void> {
+/**
+ * Queues seed writes and flushes them in a few batched transactions instead
+ * of hundreds of round trips — keeps cold-start seeding far under serverless
+ * time limits. Reads flush the queue first so the seed's SELECTs stay correct.
+ */
+class BatchDb implements DbLike {
+  private queue: InStatement[] = [];
+  constructor(private client: Client) {}
+
+  prepare(sql: string): StmtLike {
+    return {
+      run: async (...args) => {
+        this.queue.push({ sql, args: normalizeArgs(args) });
+      },
+      get: async <T = unknown>(...args: (SqlParam | Record<string, SqlParam>)[]) => {
+        await this.flush();
+        const rs = await this.client.execute({ sql, args: normalizeArgs(args) });
+        return rs.rows[0] ? ({ ...(rs.rows[0] as object) } as T) : undefined;
+      },
+      all: async <T = unknown>(...args: (SqlParam | Record<string, SqlParam>)[]) => {
+        await this.flush();
+        const rs = await this.client.execute({ sql, args: normalizeArgs(args) });
+        return rs.rows.map((r) => ({ ...(r as object) }) as T);
+      },
+    };
+  }
+
+  private async flush() {
+    while (this.queue.length) {
+      const chunk = this.queue.splice(0, 300);
+      await this.client.batch(chunk, "write");
+    }
+  }
+
+  async transaction<T>(fn: (db: DbLike) => Promise<T>): Promise<T> {
+    const out = await fn(this);
+    await this.flush();
+    return out;
+  }
+}
+
+async function maybeAutoSeed(client: Client): Promise<void> {
   if (process.env.KMR_AUTOSEED === "0") return;
-  const row = await db.prepare("SELECT COUNT(*) c FROM users").get<{ c: number }>();
-  if (row && row.c > 0) return;
+  const rs = await client.execute("SELECT COUNT(*) c FROM users");
+  if (Number(rs.rows[0]?.c ?? 0) > 0) return;
   try {
     const { seedCore } = await import("./seed-core");
     console.log(`[KMR] empty database (${IS_LOCAL_FILE ? "local file" : "remote"}) — running seed…`);
-    await seedCore(db);
+    await seedCore(new BatchDb(client));
     console.log("[KMR] seed complete");
   } catch (err) {
     // Concurrent cold starts may race the seed — unique constraints reject the
