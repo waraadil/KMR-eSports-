@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/db";
+import { getDb, newId, nowIso } from "@/db";
 import { getSession } from "@/lib/auth";
 import { handleRouteError, jsonError } from "@/lib/api";
 import { z } from "zod";
@@ -12,6 +12,8 @@ const patchSchema = z.object({
   roomPassword: z.string().max(80).nullable().optional(),
   streamUrl: z.string().url().max(300).nullable().optional(),
   featured: z.boolean().optional(),
+  /** Publish the lobby: notify every confirmed registrant that room details are live. */
+  notifyRoom: z.boolean().optional(),
 });
 
 /** Admin/organizer: update lifecycle status, room credentials, stream link. */
@@ -24,8 +26,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const body = patchSchema.parse(await req.json());
     const db = getDb();
 
-    const tournament = await db.prepare("SELECT id, status FROM tournaments WHERE id = ?").get(params.id);
+    const tournament = await db
+      .prepare("SELECT id, status, title, room_id FROM tournaments WHERE id = ?")
+      .get<{ id: string; status: string; title: string; room_id: string | null }>(params.id);
     if (!tournament) return jsonError("Tournament not found.", 404);
+
+    const effectiveRoomId = body.roomId !== undefined ? body.roomId : tournament.room_id;
+    if (body.notifyRoom && !effectiveRoomId) {
+      return jsonError("Set a room ID before publishing the lobby.", 400);
+    }
 
     const sets: string[] = [];
     const vals: (string | number | null)[] = [];
@@ -49,9 +58,33 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       sets.push("featured = ?");
       vals.push(body.featured ? 1 : 0);
     }
-    if (!sets.length) return jsonError("Nothing to update.", 400);
+    if (!sets.length && !body.notifyRoom) return jsonError("Nothing to update.", 400);
 
-    await db.prepare(`UPDATE tournaments SET ${sets.join(", ")} WHERE id = ?`).run(...vals, params.id);
+    await db.transaction(async (tx) => {
+      if (sets.length) {
+        await tx.prepare(`UPDATE tournaments SET ${sets.join(", ")} WHERE id = ?`).run(...vals, params.id);
+      }
+      if (body.notifyRoom) {
+        const regs = await tx
+          .prepare("SELECT user_id FROM registrations WHERE tournament_id = ? AND status = 'CONFIRMED'")
+          .all<{ user_id: string }>(params.id);
+        for (const r of regs) {
+          await tx
+            .prepare(
+              `INSERT INTO notifications (id, user_id, title, body, kind, read, created_at)
+               VALUES (?, ?, ?, ?, 'tournament', 0, ?)`
+            )
+            .run(
+              newId("ntf"),
+              r.user_id,
+              "Lobby is open",
+              `${tournament.title} — the room is set. Room ID: ${effectiveRoomId}. Grab the password on the tournament page and join the lobby.`,
+              nowIso()
+            );
+        }
+      }
+    });
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     return handleRouteError(err);

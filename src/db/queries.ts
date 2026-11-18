@@ -238,6 +238,35 @@ export function getTournamentStandings(tournamentId: string): Promise<StandingRo
     .all<StandingRow>(tournamentId);
 }
 
+export type MatchResultRow = {
+  match_id: string;
+  user_id: string;
+  placement: number | null;
+  kills: number;
+  placement_points: number;
+  kill_points: number;
+  total_points: number;
+  username: string;
+  ign: string | null;
+  avatar_color: string;
+};
+
+export function getTournamentMatchResults(tournamentId: string): Promise<MatchResultRow[]> {
+  return getDb()
+    .prepare(
+      `SELECT mr.match_id, mr.user_id, mr.placement, mr.kills,
+              mr.placement_points, mr.kill_points, mr.total_points,
+              u.username, u.avatar_color, r.ign
+       FROM match_results mr
+       JOIN matches m ON m.id = mr.match_id
+       JOIN users u ON u.id = mr.user_id
+       LEFT JOIN registrations r ON r.tournament_id = m.tournament_id AND r.user_id = mr.user_id
+       WHERE m.tournament_id = ?
+       ORDER BY mr.total_points DESC, mr.kills DESC`
+    )
+    .all<MatchResultRow>(tournamentId);
+}
+
 export type DashboardData = {
   registrations: (RegistrationRow & {
     title: string;

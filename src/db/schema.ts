@@ -143,4 +143,18 @@ CREATE TABLE IF NOT EXISTS withdrawals (
   processed_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_wd_status ON withdrawals(status);
+
+CREATE TABLE IF NOT EXISTS match_results (
+  id               TEXT PRIMARY KEY,
+  match_id         TEXT NOT NULL REFERENCES matches(id),
+  user_id          TEXT NOT NULL REFERENCES users(id),
+  placement        INTEGER,
+  kills            INTEGER NOT NULL DEFAULT 0,
+  placement_points INTEGER NOT NULL DEFAULT 0,
+  kill_points      INTEGER NOT NULL DEFAULT 0,
+  total_points     INTEGER NOT NULL DEFAULT 0,
+  created_at       TEXT NOT NULL,
+  UNIQUE (match_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_mr_match ON match_results(match_id);
 `;
