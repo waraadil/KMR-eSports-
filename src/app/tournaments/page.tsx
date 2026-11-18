@@ -25,8 +25,8 @@ export default async function TournamentsPage({ searchParams }: { searchParams: 
   const fee = pick(searchParams, "fee");
   const q = pick(searchParams, "q");
 
-  const games = listGames();
-  const tournaments = listTournaments({
+  const games = await listGames();
+  const tournaments = await listTournaments({
     status: status as "LIVE" | "UPCOMING" | "COMPLETED" | "ALL",
     game,
     platform,

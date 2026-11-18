@@ -11,7 +11,7 @@ export const metadata = { title: "New tournament" };
 
 export default async function NewTournamentPage() {
   await requireAdmin();
-  const games = listGames();
+  const games = await listGames();
 
   return (
     <PageShell theme="theme-rose">

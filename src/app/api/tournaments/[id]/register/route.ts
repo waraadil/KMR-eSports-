@@ -19,11 +19,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!session) return jsonError("Log in to register.", 401);
 
     const body = schema.parse(await req.json());
-    const tournament = getTournamentById(params.id);
+    const tournament = await getTournamentById(params.id);
     if (!tournament) return jsonError("Tournament not found.", 404);
     if (tournament.entry_fee > 0) return jsonError("This tournament requires a paid entry.", 402);
 
-    const { registrationId } = completeRegistration({
+    const { registrationId } = await completeRegistration({
       tournament,
       userId: session.sub,
       username: session.username,

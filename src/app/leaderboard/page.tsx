@@ -17,8 +17,7 @@ export default async function LeaderboardPage({
   searchParams: { game?: string };
 }) {
   const game = searchParams.game || "all";
-  const games = listGames();
-  const rows = getLeaderboard({ gameSlug: game, limit: 50 });
+  const [games, rows] = await Promise.all([listGames(), getLeaderboard({ gameSlug: game, limit: 50 })]);
 
   return (
     <PageShell theme="theme-gold">

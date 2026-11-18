@@ -23,23 +23,23 @@ import { cn } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const t = getTournamentBySlug(params.slug);
+  const t = await getTournamentBySlug(params.slug);
   return { title: t ? t.title : "Tournament" };
 }
 
 const ordinal = (n: number) => (n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : `${n}th`);
 
 export default async function TournamentDetailPage({ params }: { params: { slug: string } }) {
-  const t = getTournamentBySlug(params.slug);
+  const t = await getTournamentBySlug(params.slug);
   if (!t) notFound();
 
-  const [user, registrations, matches, standings] = [
-    await getCurrentUser(),
+  const [user, registrations, matches, standings] = await Promise.all([
+    getCurrentUser(),
     getRegistrationsForTournament(t.id),
     getMatchesForTournament(t.id),
-    t.status === "UPCOMING" ? [] : getTournamentStandings(t.id),
-  ];
-  const myReg = user ? getRegistrationFor(t.id, user.id) : undefined;
+    t.status === "UPCOMING" ? Promise.resolve([]) : getTournamentStandings(t.id),
+  ]);
+  const myReg = user ? await getRegistrationFor(t.id, user.id) : undefined;
 
   const prizeBreakdown = JSON.parse(t.prize_breakdown || "[]") as { place: string; amount: number }[];
   const rules = JSON.parse(t.rules || "[]") as string[];

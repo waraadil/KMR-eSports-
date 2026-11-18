@@ -15,11 +15,12 @@ export async function POST(req: NextRequest) {
     const body = loginSchema.parse(await req.json());
     const db = getDb();
 
-    const user = db
+    const user = await db
       .prepare("SELECT * FROM users WHERE email = ? OR username = ?")
-      .get(body.identifier.toLowerCase(), body.identifier) as
-      | { id: string; username: string; role: "PLAYER" | "ORGANIZER" | "ADMIN"; password_hash: string }
-      | undefined;
+      .get<{ id: string; username: string; role: "PLAYER" | "ORGANIZER" | "ADMIN"; password_hash: string }>(
+        body.identifier.toLowerCase(),
+        body.identifier
+      );
 
     if (!user || !checkPassword(body.password, user.password_hash)) {
       return jsonError("Invalid credentials. Check your details and retry.", 401);

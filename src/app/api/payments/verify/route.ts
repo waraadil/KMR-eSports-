@@ -42,9 +42,7 @@ export async function POST(req: NextRequest) {
 
     const body = verifySchema.parse(await req.json());
     const db = getDb();
-    const payment = db.prepare("SELECT * FROM payments WHERE order_id = ?").get(body.orderId) as
-      | PaymentRow
-      | undefined;
+    const payment = await db.prepare("SELECT * FROM payments WHERE order_id = ?").get<PaymentRow>(body.orderId);
 
     if (!payment || payment.user_id !== session.sub) {
       return jsonError("Unknown order.", 404);
@@ -61,22 +59,22 @@ export async function POST(req: NextRequest) {
       signature: body.signature,
     });
     if (!valid) {
-      db.prepare("UPDATE payments SET status = 'FAILED' WHERE id = ?").run(payment.id);
+      await db.prepare("UPDATE payments SET status = 'FAILED' WHERE id = ?").run(payment.id);
       return jsonError("Payment verification failed — signature mismatch.", 400);
     }
 
-    const tournament = getTournamentById(payment.tournament_id);
+    const tournament = await getTournamentById(payment.tournament_id);
     if (!tournament) return jsonError("Tournament not found.", 404);
 
     const meta = JSON.parse(payment.meta || "{}") as { ign?: string; teamName?: string | null };
 
     try {
-      db.transaction(() => {
-        db.prepare(
+      await db.transaction(async (tx) => {
+        await tx.prepare(
           "UPDATE payments SET status = 'PAID', gateway_payment_id = ?, signature = ?, paid_at = ? WHERE id = ?"
         ).run(body.paymentId, body.signature, nowIso(), payment.id);
 
-        completeRegistration({
+        await completeRegistration({
           tournament,
           userId: session.sub,
           username: session.username,
@@ -84,7 +82,7 @@ export async function POST(req: NextRequest) {
           teamName: meta.teamName,
         });
 
-        db.prepare(
+        await tx.prepare(
           `INSERT INTO notifications (id, user_id, title, body, kind, read, created_at)
            VALUES (?, ?, ?, ?, 'payment', 0, ?)`
         ).run(
@@ -98,7 +96,7 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       if (err instanceof RegistrationError) {
         // Payment succeeded but the lobby filled meanwhile — auto-refund path.
-        db.prepare("UPDATE payments SET status = 'REFUNDED' WHERE id = ?").run(payment.id);
+        await db.prepare("UPDATE payments SET status = 'REFUNDED' WHERE id = ?").run(payment.id);
         throw err;
       }
       throw err;

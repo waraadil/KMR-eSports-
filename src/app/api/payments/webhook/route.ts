@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     if (orderId) {
       // Client-side /verify performs registration; this marks the payment so a
       // background reconciler (or support) can finalise missed checkouts.
-      getDb()
+      await getDb()
         .prepare("UPDATE payments SET gateway_payment_id = ? WHERE order_id = ? AND status = 'CREATED'")
         .run(event.payload!.payment!.entity!.id, orderId);
     }

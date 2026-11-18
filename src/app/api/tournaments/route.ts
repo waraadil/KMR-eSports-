@@ -18,11 +18,11 @@ export async function POST(req: NextRequest) {
     const body = createTournamentSchema.parse(await req.json());
     const db = getDb();
 
-    const game = db.prepare("SELECT id FROM games WHERE id = ?").get(body.gameId);
+    const game = await db.prepare("SELECT id FROM games WHERE id = ?").get(body.gameId);
     if (!game) return jsonError("Unknown game.", 404);
 
     let slug = slugify(body.title);
-    const clash = db.prepare("SELECT id FROM tournaments WHERE slug = ?").get(slug);
+    const clash = await db.prepare("SELECT id FROM tournaments WHERE slug = ?").get(slug);
     if (clash) slug = `${slug}-${newId("t").slice(-4)}`;
 
     // default podium split: 50 / 30 / 20
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     ];
 
     const id = newId("trn");
-    db.prepare(
+    await db.prepare(
       `INSERT INTO tournaments (id, slug, title, game_id, description, rules, format, mode, map, platform,
         entry_fee, prize_pool, prize_breakdown, per_kill_reward, max_slots, starts_at, ends_at, status,
         featured, created_by, created_at)

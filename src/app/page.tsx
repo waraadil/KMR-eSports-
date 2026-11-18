@@ -41,12 +41,12 @@ const HOW_IT_WORKS = [
 ];
 
 export default async function HomePage() {
-  const [featured, games, stats, winners] = [
+  const [featured, games, stats, winners] = await Promise.all([
     getFeaturedTournaments(),
     listGames(),
     getPlatformStats(),
     getRecentWinners(6),
-  ];
+  ]);
 
   return (
     <PageShell theme="theme-volt">

@@ -19,7 +19,7 @@ A production-grade, full-stack competitive gaming tournament platform — host a
 | ---------- | ------------------------------------------------------------- |
 | Framework  | Next.js 14 (App Router, RSC + route handlers)                 |
 | Styling    | Tailwind CSS, custom per-page accent themes, Framer Motion    |
-| Database   | SQLite via `node:sqlite` (swap `src/db/queries.ts` for Postgres/Supabase later) |
+| Database   | SQLite via libSQL — local file in dev, hosted Turso in production      |
 | Auth       | jose JWT + bcryptjs, httpOnly session cookie                  |
 | Payments   | Razorpay REST + Checkout.js, HMAC-SHA256 verification         |
 | Fonts      | Unbounded (display), Space Grotesk (UI), Chakra Petch (labels)|
@@ -37,12 +37,25 @@ npm run dev
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/import?s=https%3A%2F%2Fgithub.com%2Fwaraadil%2FKMR-eSports-)
 
 1. Click the button (or open **Vercel → Add New → Project → Import** `waraadil/KMR-eSports-`).
-2. Vercel auto-detects Next.js — no build settings to change. `npm run build` seeds and bundles the SQLite database into the deployment automatically.
-3. Add one environment variable before deploying:
+2. Vercel auto-detects Next.js — no build settings to change.
+3. Add environment variables before deploying:
    - `AUTH_SECRET` = any long random string (e.g. `openssl rand -hex 32`)
-4. Deploy. Every push to the connected branch auto-deploys afterwards.
+   - `DATABASE_URL` + `DATABASE_AUTH_TOKEN` = from a free [Turso](https://turso.tech) database (see below)
+4. Deploy. The app creates its tables and seeds the catalog automatically on first request. Every push to `main` auto-deploys afterwards.
 
-**Serverless note:** on Vercel the bundled database is copied to `/tmp` per function instance, so runtime writes (new registrations, results) are ephemeral per-instance. For persistent production data, provision a Supabase Postgres project and swap the data layer (`src/db/queries.ts`) — the schema in `src/db/schema.ts` maps 1:1 to Postgres types.
+**Why Turso:** serverless instances each get a throwaway filesystem, so accounts registered on one instance would vanish on the next request (this was the "login doesn't work" bug). Turso hosts the same SQLite engine remotely — one persistent database shared by every instance, zero code dialect changes. Create it in ~3 minutes:
+
+```bash
+# https://turso.tech → sign up (GitHub login works) → then:
+brew install turso        # or: curl -sSfL https://get.tur.so/install.sh | bash
+turso db create kmr-esports
+turso db show kmr-esports --url          # → libsql://kmr-esports-….turso.io  = DATABASE_URL
+turso db tokens create kmr-esports       # → token = DATABASE_AUTH_TOKEN
+```
+
+(Or create the database from the Turso web dashboard and copy the URL + token from there.)
+
+**Admin account:** set `ADMIN_EMAIL` and `ADMIN_PASSWORD` env vars before the first request — the seed creates that account as ADMIN. Or register normally on the site, then promote yourself with one SQL statement (`turso db shell kmr-esports` → `UPDATE users SET role='ADMIN' WHERE email='you@example.com';`) and log out/in.
 
 
 Accounts: one admin is seeded (`admin@kmr.gg` by default — override with the `ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars before first seed). Players sign up themselves at `/register`; only admins can host tournaments.
