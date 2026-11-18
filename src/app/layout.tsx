@@ -11,6 +11,7 @@ import { getCurrentUser } from "@/lib/auth";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
 import ServiceWorker from "@/components/site/ServiceWorker";
+import RefreshOnResume from "@/components/site/RefreshOnResume";
 
 export const metadata: Metadata = {
   title: {
@@ -53,6 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {children}
         <Footer />
         <ServiceWorker />
+        <RefreshOnResume />
       </body>
     </html>
   );

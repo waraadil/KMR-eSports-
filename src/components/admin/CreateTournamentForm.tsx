@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, Plus, X } from "lucide-react";
 import type { Game } from "@/db/queries";
 
 export default function CreateTournamentForm({ games }: { games: Game[] }) {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [rules, setRules] = useState<string[]>([""]);
@@ -54,8 +52,9 @@ export default function CreateTournamentForm({ games }: { games: Game[] }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not create tournament");
-      router.push(`/admin`);
-      router.refresh();
+      // Reload the server-rendered list instead of navigating to a potentially
+      // prefetched admin payload that predates this newly created tournament.
+      window.location.assign("/admin");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create tournament");
       setBusy(false);

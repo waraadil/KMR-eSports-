@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Megaphone, Save } from "lucide-react";
+import { Bell, Eye, Loader2, Megaphone, Save } from "lucide-react";
 
 export default function RoomControl({
   tournamentId,
@@ -25,6 +25,12 @@ export default function RoomControl({
   const [streamUrl, setStreamUrl] = useState(initialStreamUrl ?? "");
   const [busy, setBusy] = useState<"save" | "publish" | null>(null);
   const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    setRoomId(initialRoomId ?? "");
+    setRoomPassword(initialRoomPassword ?? "");
+    setStreamUrl(initialStreamUrl ?? "");
+  }, [initialRoomId, initialRoomPassword, initialStreamUrl]);
 
   async function submit(notify: boolean) {
     setMsg("");
@@ -55,8 +61,12 @@ export default function RoomControl({
       if (!res.ok) throw new Error(data.error || "Failed to save");
       setMsg(
         notify
-          ? `Lobby published — ${registrantCount} player${registrantCount === 1 ? "" : "s"} notified.`
-          : "Saved. Registered players now see these details on the tournament page."
+          ? registrantCount > 0
+            ? `Lobby published — ${registrantCount} player${registrantCount === 1 ? "" : "s"} notified.`
+            : "Lobby published — no confirmed players to notify yet."
+          : roomId.trim()
+            ? "Saved without notification. Confirmed players can see the room details on the tournament page."
+            : "Saved without notification. Add a room ID before room details appear on the tournament page."
       );
       router.refresh();
     } catch (e) {
@@ -70,7 +80,7 @@ export default function RoomControl({
     <div className="space-y-3">
       <div>
         <label className="mb-1.5 block font-tech text-[10px] uppercase tracking-[0.16em] text-zinc-500">
-          Room ID
+          Room ID <span className="ml-1 normal-case tracking-normal text-zinc-600">required to publish</span>
         </label>
         <input
           className="input !py-2.5 font-tech text-[13px]"
@@ -109,6 +119,26 @@ export default function RoomControl({
       </div>
 
       {!locked && (
+        <div className="space-y-2.5 rounded-xl border border-white/[0.07] bg-black/20 p-3.5">
+          <div className="flex items-start gap-2.5 text-[11px] leading-relaxed text-zinc-400">
+            <Eye size={13} className="mt-0.5 shrink-0 text-accent" />
+            <p>
+              <span className="font-semibold text-zinc-200">Player visibility:</span> once a room ID
+              is saved, room details appear on the tournament page for confirmed players only.
+            </p>
+          </div>
+          <div className="flex items-start gap-2.5 text-[11px] leading-relaxed text-zinc-400">
+            <Bell size={13} className="mt-0.5 shrink-0 text-accent" />
+            <p>
+              <span className="font-semibold text-zinc-200">Save without notifying</span> updates
+              the page quietly. <span className="font-semibold text-zinc-200">Publish &amp; notify</span>{" "}
+              also sends an in-app alert to {registrantCount} confirmed player{registrantCount === 1 ? "" : "s"}.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {!locked && (
         <div className="flex flex-col gap-2 pt-1">
           <button
             onClick={() => submit(false)}
@@ -116,7 +146,7 @@ export default function RoomControl({
             className="btn-ghost inline-flex items-center justify-center gap-2 rounded-full py-2.5 font-tech text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-200 disabled:opacity-60"
           >
             {busy === "save" ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-            Save quietly
+            Save without notifying
           </button>
           <button
             onClick={() => submit(true)}
@@ -131,7 +161,7 @@ export default function RoomControl({
       {locked && (
         <p className="text-[12px] text-zinc-500">Tournament is completed — credentials are locked.</p>
       )}
-      {msg && <p className="text-[12px] font-medium text-zinc-400">{msg}</p>}
+      {msg && <p role="status" aria-live="polite" className="text-[12px] font-medium text-zinc-400">{msg}</p>}
     </div>
   );
 }

@@ -5,10 +5,9 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
-    // Data must never be stale: slot counts, wallet balances, results and
-    // admin actions change server-side at any time. Disable the client-side
-    // router cache so every navigation re-fetches fresh RSC payloads instead
-    // of replaying a minutes-old prefetch.
+    // Keep prefetched RSC payloads from masking live database changes. Pages
+    // can still sit open in the background or return from browser bfcache;
+    // RefreshOnResume in the root layout revalidates those on return.
     staleTimes: {
       dynamic: 0,
       static: 0,

@@ -83,8 +83,8 @@ export default async function ManageTournamentPage({ params }: { params: { id: s
                 <Radio size={13} className="text-accent" /> Room &amp; stream
               </p>
               <p className="mt-2 mb-4 text-[12px] text-zinc-500">
-                Create the custom room in-game, paste the details here, then publish — registered
-                players get notified and see the credentials on the tournament page.
+                Set up the custom room in-game, then add its ID and password below. Credentials are
+                visible only to confirmed players.
               </p>
               <RoomControl
                 tournamentId={t.id}
