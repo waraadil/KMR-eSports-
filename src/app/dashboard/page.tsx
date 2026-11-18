@@ -89,7 +89,7 @@ export default async function DashboardPage() {
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
           {/* ---------------- main column ---------------- */}
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             {active && (
               <Reveal>
                 <Link
@@ -252,7 +252,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* ---------------- right column ---------------- */}
-          <div className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+          <div className="min-w-0 space-y-6 lg:sticky lg:top-24 lg:self-start">
             <Reveal delay={0.05}>
               <WalletCard balance={user.wallet_balance} lifetime={data.totals.earnings} />
             </Reveal>

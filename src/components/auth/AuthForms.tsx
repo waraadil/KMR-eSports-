@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
 
 export function LoginForm() {
-  const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || "/dashboard";
+  const rawNext = params.get("next") || "/dashboard";
+  // Only allow same-origin paths — never an external URL.
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -27,8 +28,9 @@ export function LoginForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Login failed");
-      router.push(next);
-      router.refresh();
+      // Hard navigation: guarantees the fresh session cookie is sent and avoids
+      // the router.push + refresh race that could leave the form spinning.
+      window.location.assign(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
       setBusy(false);
@@ -86,7 +88,6 @@ export function LoginForm() {
 }
 
 export function RegisterForm() {
-  const router = useRouter();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -105,8 +106,7 @@ export function RegisterForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Registration failed");
-      router.push("/dashboard");
-      router.refresh();
+      window.location.assign("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
       setBusy(false);

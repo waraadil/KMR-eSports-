@@ -208,9 +208,14 @@ class BatchDb implements DbLike {
 async function maybeAutoSeed(client: Client): Promise<void> {
   if (process.env.KMR_AUTOSEED === "0") return;
   const rs = await client.execute("SELECT COUNT(*) c FROM users");
-  if (Number(rs.rows[0]?.c ?? 0) > 0) return;
+  const populated = Number(rs.rows[0]?.c ?? 0) > 0;
   try {
-    const { seedCore } = await import("./seed-core");
+    const { seedCore, ensureAdmin } = await import("./seed-core");
+    if (populated) {
+      // Data already exists — just guarantee an admin login (self-heal).
+      await ensureAdmin(new Db(Promise.resolve(client)));
+      return;
+    }
     console.log(`[KMR] empty database (${IS_LOCAL_FILE ? "local file" : "remote"}) — running seed…`);
     await seedCore(new BatchDb(client));
     console.log("[KMR] seed complete");

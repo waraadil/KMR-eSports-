@@ -45,7 +45,7 @@ export default async function ManageTournamentPage({ params }: { params: { id: s
         </Reveal>
 
         <div className="mt-12 grid gap-6 lg:grid-cols-[300px_1fr]">
-          <Reveal delay={0.06} className="space-y-6">
+          <Reveal delay={0.06} className="min-w-0 space-y-6">
             <div className="card p-6">
               <p className="flex items-center gap-2 font-tech text-[10px] uppercase tracking-[0.2em] text-zinc-500">
                 <Users size={13} className="text-accent" /> Lobby
@@ -68,7 +68,7 @@ export default async function ManageTournamentPage({ params }: { params: { id: s
             </Link>
           </Reveal>
 
-          <Reveal delay={0.1} className="card p-7 md:p-8">
+          <Reveal delay={0.1} className="card min-w-0 p-7 md:p-8">
             <h2 className="flex items-center gap-2.5 font-display text-lg font-bold text-white">
               {completed ? <Trophy size={17} className="text-accent" /> : <ClipboardList size={17} className="text-accent" />}
               {completed ? "Final results" : "Enter results"}

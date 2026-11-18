@@ -240,6 +240,48 @@ export default function Navbar({ user }: { user: NavUser }) {
               );
             })}
 
+            {user && user.role !== "PLAYER" && (
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.05 + LINKS.length * 0.05, type: "spring", stiffness: 420, damping: 30 }}
+              >
+                <Link
+                  href="/admin"
+                  className={cn(
+                    "group flex items-center gap-3.5 rounded-2xl px-4 py-3.5 transition-colors",
+                    pathname.startsWith("/admin") ? "bg-accent/10" : "hover:bg-white/[0.05]"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "grid h-10 w-10 place-items-center rounded-xl border shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)]",
+                      pathname.startsWith("/admin")
+                        ? "border-accent/40 bg-accent/15 text-accent"
+                        : "border-white/[0.1] bg-white/[0.05] text-zinc-300"
+                    )}
+                  >
+                    <ShieldHalf size={17} />
+                  </span>
+                  <span
+                    className={cn(
+                      "flex-1 font-tech text-[13px] font-bold uppercase tracking-[0.18em]",
+                      pathname.startsWith("/admin") ? "text-accent" : "text-zinc-200"
+                    )}
+                  >
+                    Admin console
+                  </span>
+                  <ChevronRight
+                    size={15}
+                    className={cn(
+                      "transition-transform group-hover:translate-x-0.5",
+                      pathname.startsWith("/admin") ? "text-accent" : "text-zinc-600"
+                    )}
+                  />
+                </Link>
+              </motion.div>
+            )}
+
             <div className="mt-2 border-t border-white/[0.08] pt-2.5">
               {user ? (
                 <div className="flex items-center gap-3 px-2 py-1.5">
