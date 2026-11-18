@@ -6,14 +6,20 @@ import { DDL } from "./schema";
 
 /**
  * Thin data layer over Node's built-in SQLite (node:sqlite).
- * Exposes the small, familiar prepare/get/all/run + transaction surface and
- * keeps the database file inside the workspace. Swap `DatabaseSync` for any
- * Postgres client later — all queries live in src/db/queries.ts.
+ * Exposes the small, familiar prepare/get/all/run + transaction surface.
+ *
+ * On Vercel (read-only project filesystem) the seeded database is bundled at
+ * build time (see `outputFileTracingIncludes` in next.config.mjs) and copied
+ * to /tmp on cold start; if the bundle is missing the DB is seeded in place.
  */
 
-const DB_PATH = process.env.DATABASE_PATH?.startsWith("/")
+const IS_VERCEL = process.env.VERCEL === "1";
+
+const LOCAL_PATH = process.env.DATABASE_PATH?.startsWith("/")
   ? process.env.DATABASE_PATH
   : path.join(process.cwd(), process.env.DATABASE_PATH || "./data/kmr.db");
+
+const DB_PATH = IS_VERCEL ? "/tmp/kmr.db" : LOCAL_PATH;
 
 export type SqlParam = null | number | bigint | string | Uint8Array;
 export type SqlParams = SqlParam[] | Record<string, SqlParam>;
@@ -91,17 +97,41 @@ export class Db {
   }
 }
 
+/** On Vercel, hydrate the writable /tmp copy from the read-only build bundle. */
+function bootstrapDatabase(): void {
+  if (fs.existsSync(DB_PATH)) return;
+  const bundled = path.join(process.cwd(), "data", "kmr.db");
+  try {
+    if (fs.existsSync(bundled)) fs.copyFileSync(bundled, DB_PATH);
+  } catch (err) {
+    console.warn("[KMR] could not copy bundled database, will seed fresh", err);
+  }
+}
+
+function maybeAutoSeed(db: Db): void {
+  if (process.env.KMR_AUTOSEED === "0") return;
+  const c = (db.prepare("SELECT COUNT(*) c FROM users").get() as { c: number }).c;
+  if (c > 0) return;
+  // Lazy require to avoid a load-time circular import (seed-core imports ids from here).
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { seedCore } = require("./seed-core") as typeof import("./seed-core");
+  console.log("[KMR] empty database — running seed…");
+  seedCore(db);
+}
+
 let _db: Db | null = null;
 
 export function getDb(): Db {
   if (_db) return _db;
-  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+  if (IS_VERCEL) bootstrapDatabase();
+  else fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   const inner = new DatabaseSync(DB_PATH);
   inner.exec("PRAGMA journal_mode = WAL;");
   inner.exec("PRAGMA foreign_keys = ON;");
   inner.exec("PRAGMA busy_timeout = 5000;");
   const db = new Db(inner);
   db.exec(DDL);
+  maybeAutoSeed(db);
   _db = db;
   return db;
 }
