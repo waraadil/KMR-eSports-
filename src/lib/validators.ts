@@ -55,3 +55,21 @@ export const matchCreateSchema = z.object({
   label: z.string().min(2).max(80),
   scheduledAt: z.string().datetime({ offset: true }).optional().nullable(),
 });
+
+export const forgotPasswordSchema = z.object({
+  identifier: z.string().min(3, "Enter your email or username").max(120),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(16).max(128),
+  password: z.string().min(8, "Password needs at least 8 characters").max(100),
+});
+
+export const supportThreadSchema = z.object({
+  subject: z.string().min(3, "Give it a short subject").max(120),
+  message: z.string().min(1, "Describe the issue").max(2000),
+});
+
+export const supportMessageSchema = z.object({
+  body: z.string().min(1, "Message can't be empty").max(2000),
+});

@@ -96,9 +96,17 @@ export function LoginForm({ googleEnabled = false }: { googleEnabled?: boolean }
         />
       </div>
       <div>
-        <label className="mb-2 block font-tech text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
-          Password
-        </label>
+        <div className="mb-2 flex items-center justify-between">
+          <label className="block font-tech text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+            Password
+          </label>
+          <Link
+            href="/forgot-password"
+            className="font-tech text-[11px] uppercase tracking-[0.14em] text-zinc-500 transition-colors hover:text-accent"
+          >
+            Forgot password?
+          </Link>
+        </div>
         <input
           className="input"
           type="password"

@@ -11,6 +11,7 @@ import {
   ShieldHalf,
   LogOut,
   ChevronRight,
+  LifeBuoy,
   type LucideIcon,
 } from "lucide-react";
 import Logo from "./Logo";
@@ -24,6 +25,7 @@ const LINKS: NavLink[] = [
   { href: "/tournaments", label: "Tournaments", icon: Trophy },
   { href: "/leaderboard", label: "Leaderboard", icon: BarChart3 },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/support", label: "Support", icon: LifeBuoy },
 ];
 
 /* Echo-style liquid glass surface: heavy blur, translucency, specular top edge */

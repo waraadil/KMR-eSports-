@@ -157,4 +157,36 @@ CREATE TABLE IF NOT EXISTS match_results (
   UNIQUE (match_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_mr_match ON match_results(match_id);
+
+CREATE TABLE IF NOT EXISTS support_threads (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users(id),
+  subject    TEXT NOT NULL DEFAULT '',
+  status     TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN','CLOSED')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_st_status ON support_threads(status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_st_user ON support_threads(user_id);
+
+CREATE TABLE IF NOT EXISTS support_messages (
+  id          TEXT PRIMARY KEY,
+  thread_id   TEXT NOT NULL REFERENCES support_threads(id),
+  sender_id   TEXT NOT NULL REFERENCES users(id),
+  sender_role TEXT NOT NULL DEFAULT 'PLAYER',
+  body        TEXT NOT NULL,
+  created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sm_thread ON support_messages(thread_id);
+
+CREATE TABLE IF NOT EXISTS password_resets (
+  id            TEXT PRIMARY KEY,
+  user_id       TEXT NOT NULL REFERENCES users(id),
+  token_hash    TEXT NOT NULL UNIQUE,
+  status        TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','USED','CANCELLED')),
+  requested_via TEXT NOT NULL DEFAULT 'self' CHECK (requested_via IN ('self','admin')),
+  created_at    TEXT NOT NULL,
+  expires_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pr_user ON password_resets(user_id, status);
 `;
