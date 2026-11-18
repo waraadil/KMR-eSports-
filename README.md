@@ -28,7 +28,7 @@ A production-grade, full-stack competitive gaming tournament platform — host a
 
 ```bash
 npm install
-npm run db:seed      # creates ./data/kmr.db with demo data
+npm run db:seed      # creates ./data/kmr.db with the game catalog & season content
 npm run dev
 ```
 
@@ -45,12 +45,7 @@ npm run dev
 **Serverless note:** on Vercel the bundled database is copied to `/tmp` per function instance, so runtime writes (new registrations, results) are ephemeral per-instance. For persistent production data, provision a Supabase Postgres project and swap the data layer (`src/db/queries.ts`) — the schema in `src/db/schema.ts` maps 1:1 to Postgres types.
 
 
-Demo accounts (seeded):
-
-| Role   | Email         | Password   |
-| ------ | ------------- | ---------- |
-| Admin  | `admin@kmr.gg` | `Admin@123` |
-| Player | `demo@kmr.gg`  | `Demo@1234` |
+Accounts: one admin is seeded (`admin@kmr.gg` by default — override with the `ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars before first seed). Players sign up themselves at `/register`; only admins can host tournaments.
 
 ## Going live with real payments
 

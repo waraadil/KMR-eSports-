@@ -213,26 +213,26 @@ export default async function HomePage() {
             </div>
             <div className="relative grid gap-10 p-8 md:grid-cols-[1.5fr_1fr] md:p-14">
               <div>
-                <p className="eyebrow mb-4">For organisers</p>
+                <p className="eyebrow mb-4">Season 07 standings</p>
                 <h2 className="max-w-lg font-display text-3xl font-bold leading-[1.06] tracking-tightest text-white md:text-[2.5rem]">
-                  Run your own bracket under the KMR banner
+                  Your name belongs on that trophy wall
                 </h2>
                 <p className="mt-5 max-w-md text-[15px] leading-relaxed text-zinc-400">
-                  Organizer tools, escrowed prize pools, automated points and a verified
-                  player base. Bring your community — we handle the rest.
+                  Every placement feeds the season points table. Grind the lobbies, stack
+                  your points, and climb from Rookie to Conqueror.
                 </p>
                 <div className="mt-9 flex flex-wrap gap-4">
                   <Link
-                    href="/register"
+                    href="/tournaments"
                     className="btn-accent rounded-full px-8 py-4 font-tech text-[13px] font-bold uppercase tracking-[0.16em]"
                   >
-                    Start hosting
+                    Join a tournament
                   </Link>
                   <Link
-                    href="/tournaments"
+                    href="/leaderboard"
                     className="btn-ghost rounded-full px-8 py-4 font-tech text-[13px] font-semibold uppercase tracking-[0.16em] text-zinc-200"
                   >
-                    Scout the competition
+                    See the standings
                   </Link>
                 </div>
               </div>

@@ -13,9 +13,11 @@ const daysFromNow = (d: number, h = 0) =>
   new Date(Date.now() + d * 86400000 + h * 3600000).toISOString();
 
 // ---------------------------------------------------------------- users ----
-const adminHash = bcrypt.hashSync("Admin@123", 10);
-const demoHash = bcrypt.hashSync("Demo@1234", 10);
-const playerHash = bcrypt.hashSync("Player@123", 10);
+// Admin credentials come from env so production never ships a shared password.
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "admin@kmr.gg";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "Admin@123";
+const adminHash = bcrypt.hashSync(ADMIN_PASSWORD, 10);
+const playerHash = bcrypt.hashSync(`kmr-player-${Math.random().toString(36).slice(2)}`, 10);
 
 const AVATAR_COLORS = [
   "#d8ff3e", "#fb7185", "#38bdf8", "#a78bfa", "#fbbf24", "#4ade80",
@@ -29,14 +31,8 @@ const insertUser = db.prepare(
 
 const adminId = newId("usr");
 insertUser.run({
-  id: adminId, email: "admin@kmr.gg", username: "KMR_Admin", hash: adminHash,
+  id: adminId, email: ADMIN_EMAIL, username: "KMR_Admin", hash: adminHash,
   role: "ADMIN", color: "#fb7185", bio: "Tournament operations @ KMR eSports", now: nowIso(),
-});
-
-const demoId = newId("usr");
-insertUser.run({
-  id: demoId, email: "demo@kmr.gg", username: "DemoSlayer", hash: demoHash,
-  role: "PLAYER", color: "#38bdf8", bio: "Grinding to Conqueror. Entry fragger, part-time IGL.", now: nowIso(),
 });
 
 const playerNames = [
@@ -388,31 +384,7 @@ finalizeTournament("valorant-community-clash-4", playerIds.slice(8, 16), { 1: 35
 // Domination Derby — 10 players
 finalizeTournament("codm-domination-derby", playerIds.slice(16, 26), { 1: 220000, 2: 120000, 3: 60000 }, 20);
 
-// demo user's completed run: 2nd place in Community Clash
-(function seedDemoHistory() {
-  const tid = registerUserFor(demoId, "DemoSlayer", "valorant-community-clash-4", {
-    paid: true, entryFee: 9900, team: true, placement: 2, kills: 6, daysAgo: 7,
-  });
-  const prize = 150000;
-  insertEntry.run({
-    id: newId("lbe"), user_id: demoId, tournament_id: tid, season: CURRENT_SEASON,
-    placement: 2, kills: 6, pp: placementPoints(2), kp: killPoints(6), tp: placementPoints(2) + killPoints(6),
-    prize_won: prize, created_at: daysFromNow(-7),
-  });
-  db.prepare("UPDATE registrations SET placement = 2, kills = 6 WHERE tournament_id = ? AND user_id = ?").run(tid, demoId);
-  bumpWallet.run(prize, demoId);
-  insertWallet.run({
-    id: newId("wtx"), user_id: demoId, amount: prize, type: "PRIZE_CREDIT",
-    note: "2nd place — Valorant Community Clash #4", created_at: daysFromNow(-7),
-  });
-})();
-
-// live + upcoming registrations (demo user included)
-registerUserFor(demoId, "DemoSlayer", "codm-sniper-only-showdown", { paid: true, entryFee: 7900, daysAgo: 1 });
-registerUserFor(demoId, "DemoSlayer", "valorant-neon-nights-premier", { paid: true, entryFee: 19900, team: true, daysAgo: 0 });
-registerUserFor(demoId, "DemoSlayer", "bgmi-solo-fpp-rush", { paid: false, entryFee: 0, daysAgo: 0 });
-
-// crowd registrations for live/upcoming tournaments
+// live + upcoming crowd registrations
 const crowdTargets: [string, number, boolean][] = [
   ["bgmi-winter-clash-championship", 76, true],
   ["valorant-neon-nights-premier", 21, true],
@@ -491,18 +463,5 @@ seedMatches("valorant-neon-nights-premier", [
   ["Bracket", "Round of 32 — Ascent", 126, "SCHEDULED"],
   ["Bracket", "Round of 16 — Bind", 130, "SCHEDULED"],
 ]);
-
-// notifications for demo user
-const demoNotifs: [string, string, string, number][] = [
-  ["You're in — Sniper-Only Showdown", "Lobby room ID and password are now visible on the tournament page. GLHF!", "tournament", 0],
-  ["Payment successful", "₹199.00 paid for Valorant Neon Nights Premier. Receipt #KMR-2210.", "payment", 0],
-  ["Prize credited", "₹1,500.00 from Valorant Community Clash #4 hit your KMR wallet.", "prize", 1],
-  ["Room details dropped", "BGMI Winter Clash Championship lobby opens 15 min before start.", "tournament", 1],
-];
-demoNotifs.forEach(([title, body, kind, read], i) => {
-  insertNotif.run({
-    id: newId("ntf"), user_id: demoId, title, body, kind, read, created_at: daysFromNow(0, -i * 3),
-  });
-});
 
 }

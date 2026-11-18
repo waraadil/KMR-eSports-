@@ -16,5 +16,5 @@ if (count > 0) {
 seedCore(db);
 
 console.log("✔ Seeded KMR eSports database");
-console.log("  Admin login:  admin@kmr.gg / Admin@123");
-console.log("  Player login: demo@kmr.gg  / Demo@1234");
+console.log(`  Admin login: ${process.env.ADMIN_EMAIL ?? "admin@kmr.gg"} / ${process.env.ADMIN_PASSWORD ?? "Admin@123"}`);
+console.log("  Players sign up via /register");
