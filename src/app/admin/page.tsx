@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  Activity, CircleDollarSign, Gamepad2, Plus, Radio, Swords, Users, Wallet,
+  Activity, CircleDollarSign, Gamepad2, LifeBuoy, Plus, Radio, Swords, Users, Wallet,
 } from "lucide-react";
 import PageShell from "@/components/site/PageShell";
 import Section from "@/components/site/Section";
@@ -30,6 +30,14 @@ export default async function AdminPage() {
     )
     .all<WithdrawalRow>();
   const pendingWithdrawals = withdrawals.filter((w) => w.status === "PENDING");
+  const supportCounts = await getDb()
+    .prepare(
+      `SELECT
+         (SELECT COUNT(*) FROM support_threads WHERE status = 'OPEN') AS open_threads,
+         (SELECT COUNT(*) FROM password_resets WHERE status = 'PENDING' AND expires_at > datetime('now')) AS pending_resets`
+    )
+    .get<{ open_threads: number; pending_resets: number }>();
+  const openSupport = (supportCounts?.open_threads ?? 0) + (supportCounts?.pending_resets ?? 0);
 
   const cards = [
     { label: "Registered players", value: String(overview.players), icon: Users },
@@ -52,6 +60,17 @@ export default async function AdminPage() {
               </h1>
             </div>
             <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href="/admin/support"
+                className="btn-ghost relative inline-flex items-center gap-2 rounded-full px-6 py-4 font-tech text-[12px] font-bold uppercase tracking-[0.16em] text-zinc-200"
+              >
+                <LifeBuoy size={15} /> Support
+                {openSupport > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 grid h-6 min-w-6 place-items-center rounded-full bg-accent px-1.5 font-display text-[11px] font-bold text-void-950">
+                    {openSupport}
+                  </span>
+                )}
+              </Link>
               <Link
                 href="/admin/tournaments/new"
                 className="btn-accent inline-flex items-center gap-2 rounded-full px-7 py-4 font-tech text-[12px] font-bold uppercase tracking-[0.16em]"
