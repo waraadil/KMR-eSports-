@@ -41,6 +41,12 @@ body {
   color: var(--on-accent);
 }
 
+/* Grid and flex children are allowed to shrink below their content width, so
+   wide content (points tables, brackets) scrolls inside its own container
+   instead of pushing the whole page off-screen on mobile. Explicit min-w-*
+   utilities still win over this. */
+*, *::before, *::after { min-width: 0; }
+
 /* ------- scrollbar ------- */
 html, body { overflow-x: clip; }
 

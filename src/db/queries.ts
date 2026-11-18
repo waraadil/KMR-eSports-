@@ -389,7 +389,7 @@ export async function getPlatformStats(): Promise<{
 }> {
   const db = getDb();
   const [players, tournaments, prize, matches] = await Promise.all([
-    db.prepare("SELECT COUNT(*) c FROM users").get<{ c: number }>(),
+    db.prepare("SELECT COUNT(*) c FROM users WHERE role = 'PLAYER'").get<{ c: number }>(),
     db.prepare("SELECT COUNT(*) c FROM tournaments").get<{ c: number }>(),
     db
       .prepare("SELECT COALESCE(SUM(prize_pool),0) s FROM tournaments WHERE status != 'CANCELLED'")

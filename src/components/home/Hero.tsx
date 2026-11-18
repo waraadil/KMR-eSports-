@@ -103,10 +103,10 @@ export default function Hero({
           className="mt-16 grid max-w-3xl grid-cols-2 gap-x-8 gap-y-8 border-t border-white/10 pt-8 sm:grid-cols-4"
         >
           {[
-            { label: "Prize money hosted", value: Math.round(stats.prize / 100), prefix: "₹", suffix: "+" },
-            { label: "Registered players", value: stats.players * 91 + 12400, suffix: "+" },
-            { label: "Tournaments run", value: stats.tournaments * 12 + 180, suffix: "+" },
-            { label: "Lobbies completed", value: stats.matches * 40 + 900, suffix: "+" },
+            { label: "Prize money hosted", value: Math.round(stats.prize / 100), prefix: "₹", suffix: stats.prize > 0 ? "+" : "" },
+            { label: "Registered players", value: stats.players, suffix: stats.players > 0 ? "+" : "" },
+            { label: "Tournaments hosted", value: stats.tournaments, suffix: stats.tournaments > 0 ? "+" : "" },
+            { label: "Lobbies completed", value: stats.matches, suffix: stats.matches > 0 ? "+" : "" },
           ].map((s) => (
             <div key={s.label}>
               <dd className="font-display text-2xl font-bold text-white md:text-[1.7rem]">
