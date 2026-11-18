@@ -32,6 +32,19 @@ npm run db:seed      # creates ./data/kmr.db with demo data
 npm run dev
 ```
 
+## Deploy to Vercel
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/import?s=https%3A%2F%2Fgithub.com%2Fwaraadil%2FKMR-eSports-)
+
+1. Click the button (or open **Vercel → Add New → Project → Import** `waraadil/KMR-eSports-`).
+2. Vercel auto-detects Next.js — no build settings to change. `npm run build` seeds and bundles the SQLite database into the deployment automatically.
+3. Add one environment variable before deploying:
+   - `AUTH_SECRET` = any long random string (e.g. `openssl rand -hex 32`)
+4. Deploy. Every push to the connected branch auto-deploys afterwards.
+
+**Serverless note:** on Vercel the bundled database is copied to `/tmp` per function instance, so runtime writes (new registrations, results) are ephemeral per-instance. For persistent production data, provision a Supabase Postgres project and swap the data layer (`src/db/queries.ts`) — the schema in `src/db/schema.ts` maps 1:1 to Postgres types.
+
+
 Demo accounts (seeded):
 
 | Role   | Email         | Password   |
