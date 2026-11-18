@@ -65,7 +65,20 @@ Accounts: one admin is seeded (`admin@kmr.gg` by default — override with the `
 1. Create a Razorpay account → get **Key ID** and **Key Secret**.
 2. Copy `.env.example` to `.env.local` and fill in `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`, plus a strong `AUTH_SECRET`.
 3. (Optional) Add a webhook in the Razorpay dashboard pointing to `/api/payments/webhook` and set `RAZORPAY_WEBHOOK_SECRET`.
-4. Restart — the checkout automatically switches from sandbox to the real gateway.
+4. Redeploy/restart — the checkout automatically switches from sandbox to the real gateway (UPI, cards, netbanking via Razorpay Checkout).
+
+## Google sign-in
+
+Players can log in with Google in addition to email/password. One-time setup:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com) → create a project (e.g. `kmr-esports`).
+2. **APIs & Services → OAuth consent screen** → External → fill app name + your email → Save.
+3. **Credentials → Create Credentials → OAuth Client ID** → type **Web**.
+4. Under **Authorized redirect URIs** add:
+   - `https://<your-vercel-domain>/api/auth/google/callback`
+   - `http://localhost:3000/api/auth/google/callback` (for local dev)
+5. Copy the **Client ID** and **Client Secret** into env vars `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` (Vercel → Settings → Environment Variables for production).
+6. Redeploy. A "Continue with Google" button appears on the login and register pages. First-time Google users get a player profile created automatically; a Google account whose email matches an existing password account logs into that account.
 
 ## Project layout
 
