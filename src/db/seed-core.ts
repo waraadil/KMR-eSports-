@@ -4,10 +4,10 @@
  * table is empty. Runs as one atomic transaction.
  */
 import bcrypt from "bcryptjs";
-import { newId, nowIso, type Db } from "./index";
+import { newId, nowIso, type DbLike } from "./index";
 import { placementPoints, killPoints, CURRENT_SEASON } from "../lib/points";
 
-export async function seedCore(db: Db): Promise<void> {
+export async function seedCore(db: DbLike): Promise<void> {
   await db.transaction(async (tx) => {
 
 const daysFromNow = (d: number, h = 0) =>
