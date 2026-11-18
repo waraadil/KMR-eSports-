@@ -16,6 +16,8 @@ export default function WalletCard({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [upiId, setUpiId] = useState("");
 
   // ring shows how much of lifetime earnings remains in balance
   const pct = lifetime > 0 ? Math.min(1, balance / lifetime) : 0;
@@ -27,17 +29,27 @@ export default function WalletCard({
       setMsg("Minimum withdrawal is ₹100.");
       return;
     }
+    if (!showForm) {
+      setShowForm(true);
+      setMsg("");
+      return;
+    }
+    if (!/^[\w.\-]{2,}@[a-zA-Z][a-zA-Z0-9]{1,}$/.test(upiId.trim())) {
+      setMsg("Enter a valid UPI ID (e.g. name@okhdfcbank).");
+      return;
+    }
     setBusy(true);
     setMsg("");
     try {
       const res = await fetch("/api/wallet/withdraw", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amountPaise: balance }),
+        body: JSON.stringify({ amountPaise: balance, upiId: upiId.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Withdrawal failed");
-      setMsg("Withdrawal initiated — check notifications.");
+      setMsg("Withdrawal queued — paid out within 24h. Track it in notifications.");
+      setShowForm(false);
       router.refresh();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Withdrawal failed");
@@ -88,13 +100,25 @@ export default function WalletCard({
           <p className="mt-1 text-[12px] text-zinc-500">
             Lifetime winnings <span className="font-semibold text-zinc-300">{formatINR(lifetime)}</span>
           </p>
+          {showForm && (
+            <div className="mt-4">
+              <input
+                className="input !py-2.5 text-[13px]"
+                placeholder="Your UPI ID — name@okhdfcbank"
+                value={upiId}
+                onChange={(e) => setUpiId(e.target.value)}
+                autoCapitalize="none"
+                autoCorrect="off"
+              />
+            </div>
+          )}
           <button
             onClick={withdraw}
             disabled={busy}
             className="btn-accent mt-4 inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 font-tech text-[11px] font-bold uppercase tracking-[0.14em] disabled:opacity-60"
           >
             {busy ? <Loader2 size={13} className="animate-spin" /> : <ArrowUpRight size={13} />}
-            Withdraw to UPI
+            {showForm ? "Confirm withdrawal" : "Withdraw to UPI"}
           </button>
         </div>
       </div>
