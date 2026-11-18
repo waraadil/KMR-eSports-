@@ -4,7 +4,13 @@ export const SESSION_COOKIE = "kmr_session";
 const SESSION_DAYS = 30;
 
 function secretKey(): Uint8Array {
-  const secret = process.env.AUTH_SECRET;
+  // Priority: explicit AUTH_SECRET → the Turso/DB token (high-entropy, injected
+  // by the Vercel Turso integration — keeps production sessions secure with no
+  // extra config) → insecure local-dev fallback.
+  const secret =
+    process.env.AUTH_SECRET ||
+    process.env.DATABASE_AUTH_TOKEN ||
+    process.env.TURSO_AUTH_TOKEN;
   if (!secret) {
     if (process.env.NODE_ENV === "production") {
       console.warn("[KMR] AUTH_SECRET is not set — using an insecure development fallback.");
