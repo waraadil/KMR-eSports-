@@ -30,7 +30,7 @@ export default function Footer() {
           <div>
             <Logo />
             <p className="mt-5 max-w-xs text-sm leading-relaxed text-zinc-500">
-              India&apos;s competitive gaming arena. Host and play paid &amp; free tournaments
+              India&apos;s competitive gaming arena. Join paid &amp; free tournaments
               across every major title — with instant prize payouts.
             </p>
             <div className="mt-6 flex gap-3">
@@ -81,7 +81,7 @@ export default function Footer() {
 
         <div className="mt-8 flex flex-col items-center justify-between gap-3 border-t border-white/[0.06] pt-8 text-[12px] text-zinc-600 md:flex-row">
           <p>© 2026 KMR eSports. All rights reserved.</p>
-          <p className="font-tech uppercase tracking-[0.22em]">Host · Compete · Conquer</p>
+          <p className="font-tech uppercase tracking-[0.22em]">Join · Compete · Conquer</p>
         </div>
       </div>
     </footer>

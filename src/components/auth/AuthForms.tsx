@@ -81,12 +81,6 @@ export function LoginForm() {
           Create an account
         </Link>
       </p>
-      <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 text-center">
-        <p className="font-tech text-[10px] uppercase tracking-[0.18em] text-zinc-600">Demo credentials</p>
-        <p className="mt-1.5 font-tech text-[12px] text-zinc-400">
-          demo@kmr.gg / Demo@1234 · admin@kmr.gg / Admin@123
-        </p>
-      </div>
     </form>
   );
 }

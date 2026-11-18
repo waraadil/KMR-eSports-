@@ -51,7 +51,7 @@ export default function Hero({
         </motion.div>
 
         <h1 className="max-w-5xl font-display text-[11.5vw] font-bold leading-[0.98] tracking-tightest text-white sm:text-6xl md:text-[5.4rem]">
-          {["HOST.", "COMPETE.", "CONQUER."].map((line, i) => (
+          {["JOIN.", "COMPETE.", "CONQUER."].map((line, i) => (
             <span key={line} className="block overflow-hidden">
               <motion.span
                 className={i === 2 ? "block text-accent text-glow" : "block"}
@@ -89,10 +89,10 @@ export default function Hero({
             <Swords size={16} /> Browse tournaments
           </Link>
           <Link
-            href="/register?role=organizer"
+            href="/leaderboard"
             className="btn-ghost inline-flex items-center gap-2.5 rounded-full px-8 py-4 font-tech text-[13px] font-semibold uppercase tracking-[0.16em] text-zinc-200"
           >
-            <Trophy size={16} /> Host a tournament
+            <Trophy size={16} /> View leaderboard
           </Link>
         </motion.div>
 
