@@ -10,6 +10,7 @@ import "./globals.css";
 import { getCurrentUser } from "@/lib/auth";
 import Navbar from "@/components/site/Navbar";
 import Footer from "@/components/site/Footer";
+import ServiceWorker from "@/components/site/ServiceWorker";
 
 export const metadata: Metadata = {
   title: {
@@ -19,6 +20,19 @@ export const metadata: Metadata = {
   description:
     "KMR eSports is India's competitive gaming arena. Paid and free tournaments across BGMI, Valorant, Free Fire, CODM, EA FC and CS2 — with instant payouts and a live points system.",
   keywords: ["esports", "tournaments", "BGMI", "Valorant", "gaming", "India", "KMR"],
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "KMR eSports",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {
@@ -36,6 +50,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Navbar user={user ? { username: user.username, role: user.role, avatar_color: user.avatar_color } : null} />
         {children}
         <Footer />
+        <ServiceWorker />
       </body>
     </html>
   );
