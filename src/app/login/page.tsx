@@ -3,6 +3,7 @@ import Image from "next/image";
 import PageShell from "@/components/site/PageShell";
 import Reveal from "@/components/motion/Reveal";
 import { LoginForm } from "@/components/auth/AuthForms";
+import { googleEnabled } from "@/lib/google";
 
 export const metadata = { title: "Log in" };
 
@@ -59,7 +60,7 @@ export default function LoginPage() {
             <p className="eyebrow mb-2">Log in</p>
             <h2 className="mb-8 font-display text-xl font-bold text-white">Back to the grind</h2>
             <Suspense>
-              <LoginForm />
+              <LoginForm googleEnabled={googleEnabled()} />
             </Suspense>
           </div>
         </Reveal>

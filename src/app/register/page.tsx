@@ -2,6 +2,7 @@ import Image from "next/image";
 import PageShell from "@/components/site/PageShell";
 import Reveal from "@/components/motion/Reveal";
 import { RegisterForm } from "@/components/auth/AuthForms";
+import { googleEnabled } from "@/lib/google";
 
 export const metadata = { title: "Create account" };
 
@@ -53,7 +54,7 @@ export default function RegisterPage() {
           <div className="card mx-auto w-full max-w-md p-8">
             <p className="eyebrow mb-2">Sign up</p>
             <h2 className="mb-8 font-display text-xl font-bold text-white">Create your fighter profile</h2>
-            <RegisterForm />
+            <RegisterForm googleEnabled={googleEnabled()} />
           </div>
         </Reveal>
       </div>
