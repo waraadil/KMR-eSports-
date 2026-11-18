@@ -6,6 +6,7 @@ import PageShell from "@/components/site/PageShell";
 import Section from "@/components/site/Section";
 import Reveal from "@/components/motion/Reveal";
 import StatusControl from "@/components/admin/StatusControl";
+import PurgeDemoButton from "@/components/admin/PurgeDemoButton";
 import { requireAdmin } from "@/lib/auth";
 import { getAdminOverview, listTournaments } from "@/db/queries";
 import { formatDateTime, formatINR } from "@/lib/format";
@@ -38,12 +39,15 @@ export default async function AdminPage() {
                 Tournament <span className="text-accent text-glow">ops</span>
               </h1>
             </div>
-            <Link
-              href="/admin/tournaments/new"
-              className="btn-accent inline-flex items-center gap-2 rounded-full px-7 py-4 font-tech text-[12px] font-bold uppercase tracking-[0.16em]"
-            >
-              <Plus size={15} /> New tournament
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href="/admin/tournaments/new"
+                className="btn-accent inline-flex items-center gap-2 rounded-full px-7 py-4 font-tech text-[12px] font-bold uppercase tracking-[0.16em]"
+              >
+                <Plus size={15} /> New tournament
+              </Link>
+              <PurgeDemoButton />
+            </div>
           </div>
         </Reveal>
 

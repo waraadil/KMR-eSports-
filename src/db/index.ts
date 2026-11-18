@@ -224,13 +224,18 @@ async function maybeAutoSeed(client: Client): Promise<void> {
   } catch (err) {
     // Concurrent cold starts may race the seed — unique constraints reject the
     // duplicate run; the winner's data stands.
-    console.warn("[KMR] seed skipped (likely seeded concurrently):", (err as Error).message);
+    console.warn("[KMR] startup seed/purge failed:", err);
   }
 }
 
 /** Returns the ambient transaction's Db when inside one, else the shared Db. */
 export function getDb(): Db {
   return txStore.getStore() ?? new Db(init());
+}
+
+/** Raw initialized libSQL client (DDL + startup tasks already ran). */
+export function getRawClient(): Promise<Client> {
+  return init();
 }
 
 export function newId(prefix: string): string {

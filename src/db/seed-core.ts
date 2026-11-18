@@ -60,10 +60,15 @@ const DEMO_USER_EMAIL_LIKE = "%@players.kmr.gg";
  * admin-created tournaments are untouched. Guarded by a _meta flag so it runs
  * exactly once per database.
  */
-export async function purgeDemoData(client: Client): Promise<void> {
+export async function purgeDemoData(
+  client: Client,
+  opts: { force?: boolean } = {}
+): Promise<{ tournaments: number; botUsers: number; alreadyDone: boolean }> {
   await client.execute("CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
-  const done = await client.execute("SELECT value FROM _meta WHERE key = 'demo_purge_v1'");
-  if (done.rows.length > 0) return;
+  if (!opts.force) {
+    const done = await client.execute("SELECT value FROM _meta WHERE key = 'demo_purge_v1'");
+    if (done.rows.length > 0) return { tournaments: 0, botUsers: 0, alreadyDone: true };
+  }
 
   const stmts: InStatement[] = [];
 
@@ -95,13 +100,14 @@ export async function purgeDemoData(client: Client): Promise<void> {
   }
 
   stmts.push({
-    sql: "INSERT INTO _meta (key, value) VALUES ('demo_purge_v1', ?)",
+    sql: "INSERT OR REPLACE INTO _meta (key, value) VALUES ('demo_purge_v1', ?)",
     args: [new Date().toISOString()],
   });
   await client.batch(stmts, "write");
   if (tIds.length > 0 || uIds.length > 0) {
     console.log(`[KMR] demo data purged — ${tIds.length} sample tournaments, ${uIds.length} bot players removed`);
   }
+  return { tournaments: tIds.length, botUsers: uIds.length, alreadyDone: false };
 }
 
 export async function seedCore(db: DbLike): Promise<void> {
