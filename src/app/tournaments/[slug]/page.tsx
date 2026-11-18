@@ -9,12 +9,14 @@ import Section from "@/components/site/Section";
 import Reveal from "@/components/motion/Reveal";
 import StatusBadge from "@/components/tournaments/StatusBadge";
 import RegisterPanel from "@/components/tournaments/RegisterPanel";
+import StandingsTabs from "@/components/tournaments/StandingsTabs";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getMatchesForTournament,
   getRegistrationFor,
   getRegistrationsForTournament,
   getTournamentBySlug,
+  getTournamentMatchResults,
   getTournamentStandings,
 } from "@/db/queries";
 import { formatDateTime, formatINR, initialOf, timeUntil } from "@/lib/format";
@@ -40,6 +42,14 @@ export default async function TournamentDetailPage({ params }: { params: { slug:
     t.status === "UPCOMING" ? Promise.resolve([]) : getTournamentStandings(t.id),
   ]);
   const myReg = user ? await getRegistrationFor(t.id, user.id) : undefined;
+
+  const scoredMatches = matches.filter((m) => m.status === "COMPLETED");
+  const matchResults =
+    scoredMatches.length > 0 && t.status !== "UPCOMING" ? await getTournamentMatchResults(t.id) : [];
+  const resultsByMatch: Record<string, typeof matchResults> = {};
+  for (const r of matchResults) {
+    (resultsByMatch[r.match_id] ??= []).push(r);
+  }
 
   const prizeBreakdown = JSON.parse(t.prize_breakdown || "[]") as { place: string; amount: number }[];
   const rules = JSON.parse(t.rules || "[]") as string[];
@@ -127,60 +137,11 @@ export default async function TournamentDetailPage({ params }: { params: { slug:
                     {t.status === "LIVE" ? "Provisional standings" : "Final standings"}
                   </span>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[560px] text-left">
-                    <thead>
-                      <tr className="border-b border-white/[0.06] font-tech text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                        <th className="px-7 py-3.5 font-semibold">#</th>
-                        <th className="px-4 py-3.5 font-semibold">Player</th>
-                        <th className="px-4 py-3.5 text-center font-semibold">Place pts</th>
-                        <th className="px-4 py-3.5 text-center font-semibold">Finishes</th>
-                        <th className="px-4 py-3.5 text-center font-semibold">Kill pts</th>
-                        <th className="px-7 py-3.5 text-right font-semibold">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {standings.map((s, i) => (
-                        <tr
-                          key={s.user_id}
-                          className={cn(
-                            "border-b border-white/[0.04] transition-colors hover:bg-white/[0.03]",
-                            i === 0 && "bg-accent-soft/60"
-                          )}
-                        >
-                          <td className="px-7 py-3.5 font-display text-[13px] font-bold text-zinc-400">{i + 1}</td>
-                          <td className="px-4 py-3.5">
-                            <span className="flex items-center gap-3">
-                              <span
-                                className="grid h-8 w-8 shrink-0 place-items-center rounded-full font-display text-[11px] font-bold text-void-950"
-                                style={{ background: s.avatar_color }}
-                              >
-                                {initialOf(s.username)}
-                              </span>
-                              <span>
-                                <span className="block text-[13.5px] font-semibold text-white">{s.ign}</span>
-                                {s.team_name && (
-                                  <span className="block text-[11px] text-zinc-500">{s.team_name}</span>
-                                )}
-                              </span>
-                              {s.prize_won > 0 && (
-                                <span className="ml-1 rounded-full bg-accent-soft px-2 py-0.5 font-tech text-[9px] font-bold uppercase tracking-wider text-accent">
-                                  {formatINR(s.prize_won)}
-                                </span>
-                              )}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3.5 text-center text-[13px] text-zinc-400">{s.placement_points}</td>
-                          <td className="px-4 py-3.5 text-center text-[13px] text-zinc-400">{s.kills}</td>
-                          <td className="px-4 py-3.5 text-center text-[13px] text-zinc-400">{s.kill_points}</td>
-                          <td className="px-7 py-3.5 text-right font-display text-[14px] font-bold text-accent">
-                            {s.total_points}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <StandingsTabs
+                  standings={standings}
+                  matches={scoredMatches.map((m) => ({ id: m.id, label: m.label }))}
+                  resultsByMatch={resultsByMatch}
+                />
               </Reveal>
             )}
 

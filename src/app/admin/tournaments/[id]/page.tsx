@@ -1,13 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ClipboardList, Trophy, Users } from "lucide-react";
+import { ArrowLeft, ClipboardList, Layers, Trophy, Users } from "lucide-react";
 import PageShell from "@/components/site/PageShell";
 import Section from "@/components/site/Section";
 import Reveal from "@/components/motion/Reveal";
 import ResultsForm from "@/components/admin/ResultsForm";
+import MatchManager, { type MatchRow } from "@/components/admin/MatchManager";
 import StatusControl from "@/components/admin/StatusControl";
 import { requireAdmin } from "@/lib/auth";
-import { getRegistrationsForTournament, getTournamentById } from "@/db/queries";
+import { getDb } from "@/db";
+import {
+  getRegistrationsForTournament,
+  getTournamentById,
+  getTournamentMatchResults,
+  type MatchResultRow,
+} from "@/db/queries";
 import { formatDateTime, formatINR } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +27,16 @@ export default async function ManageTournamentPage({ params }: { params: { id: s
   if (!t) notFound();
   const registrations = await getRegistrationsForTournament(t.id);
   const completed = t.status === "COMPLETED";
+  const matches = await getDb()
+    .prepare(
+      "SELECT id, round, label, status, scheduled_at FROM matches WHERE tournament_id = ? ORDER BY rowid"
+    )
+    .all<MatchRow>(t.id);
+  const matchResults = await getTournamentMatchResults(t.id);
+  const resultsByMatch: Record<string, MatchResultRow[]> = {};
+  for (const r of matchResults) {
+    (resultsByMatch[r.match_id] ??= []).push(r);
+  }
 
   return (
     <PageShell theme="theme-rose">
@@ -80,6 +97,28 @@ export default async function ManageTournamentPage({ params }: { params: { id: s
             </p>
             <div className="mt-7">
               <ResultsForm tournamentId={t.id} registrations={registrations} completed={completed} />
+            </div>
+          </Reveal>
+
+          <Reveal delay={0.14} className="card min-w-0 p-7 md:p-8 lg:col-span-2">
+            <h2 className="flex items-center gap-2.5 font-display text-lg font-bold text-white">
+              <Layers size={17} className="text-accent" />
+              Match-wise scoring
+            </h2>
+            <p className="mt-2 text-[13px] text-zinc-500">
+              Multi-map events (like a 3-map BGMI final): add each map below, score it after the game,
+              and the public points table updates live. When all maps are done, hit{" "}
+              <span className="text-zinc-300">Finalize standings</span> to rank everyone by aggregate
+              points, pay the prize breakdown, and lock the tournament.
+            </p>
+            <div className="mt-7">
+              <MatchManager
+                tournamentId={t.id}
+                matches={matches}
+                registrations={registrations}
+                resultsByMatch={resultsByMatch}
+                completed={completed}
+              />
             </div>
           </Reveal>
         </div>

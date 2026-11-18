@@ -49,3 +49,9 @@ export const resultsSchema = z.object({
     .min(1)
     .max(512),
 });
+
+export const matchCreateSchema = z.object({
+  round: z.string().min(1).max(40),
+  label: z.string().min(2).max(80),
+  scheduledAt: z.string().datetime({ offset: true }).optional().nullable(),
+});
