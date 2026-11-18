@@ -86,6 +86,20 @@ export default function RegisterPanel({
       description: title,
       order_id: order.orderId,
       theme: { color: "#d8ff3e", backdrop_color: "rgba(4,4,8,0.85)" },
+      config: {
+        display: {
+          blocks: {
+            upi: { name: "Pay via UPI", instruments: [{ method: "upi" }] },
+            cards: { name: "Cards", instruments: [{ method: "card" }] },
+            more: {
+              name: "More options",
+              instruments: [{ method: "netbanking" }, { method: "wallet" }],
+            },
+          },
+          sequence: ["block.upi", "block.cards", "block.more"],
+          preferences: { show_default_blocks: true },
+        },
+      },
       handler: (resp: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) =>
         finalizeVerify(resp.razorpay_order_id, resp.razorpay_payment_id, resp.razorpay_signature),
       modal: { ondismiss: () => setStep("form") },
