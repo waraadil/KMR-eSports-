@@ -17,17 +17,17 @@ export async function POST(req: NextRequest) {
     const { amountPaise } = schema.parse(await req.json());
 
     const db = getDb();
-    const user = db.prepare("SELECT wallet_balance FROM users WHERE id = ?").get(session.sub) as {
-      wallet_balance: number;
-    };
+    const user = (await db
+      .prepare("SELECT wallet_balance FROM users WHERE id = ?")
+      .get<{ wallet_balance: number }>(session.sub))!;
     if (amountPaise > user.wallet_balance) return jsonError("Insufficient wallet balance.", 400);
 
-    db.transaction(() => {
-      db.prepare("UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ?").run(amountPaise, session.sub);
-      db.prepare(
+    await db.transaction(async (tx) => {
+      await tx.prepare("UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ?").run(amountPaise, session.sub);
+      await tx.prepare(
         `INSERT INTO wallet_transactions (id, user_id, amount, type, note, created_at) VALUES (?, ?, ?, 'WITHDRAWAL', 'UPI withdrawal (processing — within 24h)', ?)`
       ).run(newId("wtx"), session.sub, -amountPaise, nowIso());
-      db.prepare(
+      await tx.prepare(
         `INSERT INTO notifications (id, user_id, title, body, kind, read, created_at) VALUES (?, ?, ?, ?, 'payment', 0, ?)`
       ).run(
         newId("ntf"), session.sub, "Withdrawal initiated",

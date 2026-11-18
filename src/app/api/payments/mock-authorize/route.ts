@@ -18,9 +18,9 @@ export async function POST(req: NextRequest) {
 
   const { orderId } = z.object({ orderId: z.string().min(4) }).parse(await req.json());
   const db = getDb();
-  const payment = db
+  const payment = await db
     .prepare("SELECT id, gateway, status, user_id FROM payments WHERE order_id = ?")
-    .get(orderId) as { id: string; gateway: string; status: string; user_id: string } | undefined;
+    .get<{ id: string; gateway: string; status: string; user_id: string }>(orderId);
 
   if (!payment || payment.user_id !== session.sub) return jsonError("Unknown order.", 404);
   if (payment.gateway !== "mock") return jsonError("Not a mock order.", 400);

@@ -23,13 +23,13 @@ export async function POST(req: NextRequest) {
     }
 
     const body = registrationInputSchema.parse(await req.json());
-    const tournament = getTournamentById(body.tournamentId);
+    const tournament = await getTournamentById(body.tournamentId);
     if (!tournament) return jsonError("Tournament not found.", 404);
     if (tournament.status !== "UPCOMING" && tournament.status !== "LIVE") {
       return jsonError("Registrations are closed for this tournament.", 409);
     }
     if (tournament.entry_fee <= 0) return jsonError("This tournament is free — no payment needed.", 400);
-    if (getRegistrationFor(tournament.id, session.sub)) {
+    if (await getRegistrationFor(tournament.id, session.sub)) {
       return jsonError("You already have a slot in this tournament.", 409);
     }
     if (tournament.filled_slots >= tournament.max_slots) {
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       notes: { tournamentId: tournament.id, userId: session.sub },
     });
 
-    db.prepare(
+    await db.prepare(
       `INSERT INTO payments (id, order_id, user_id, tournament_id, amount, currency, gateway, meta, status, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'CREATED', ?)`
     ).run(

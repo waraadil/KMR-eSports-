@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const body = patchSchema.parse(await req.json());
     const db = getDb();
 
-    const tournament = db.prepare("SELECT id, status FROM tournaments WHERE id = ?").get(params.id);
+    const tournament = await db.prepare("SELECT id, status FROM tournaments WHERE id = ?").get(params.id);
     if (!tournament) return jsonError("Tournament not found.", 404);
 
     const sets: string[] = [];
@@ -51,7 +51,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
     if (!sets.length) return jsonError("Nothing to update.", 400);
 
-    db.prepare(`UPDATE tournaments SET ${sets.join(", ")} WHERE id = ?`).run(...vals, params.id);
+    await db.prepare(`UPDATE tournaments SET ${sets.join(", ")} WHERE id = ?`).run(...vals, params.id);
     return NextResponse.json({ ok: true });
   } catch (err) {
     return handleRouteError(err);

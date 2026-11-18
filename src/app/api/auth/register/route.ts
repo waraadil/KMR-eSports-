@@ -17,9 +17,9 @@ export async function POST(req: NextRequest) {
     const body = registerSchema.parse(await req.json());
     const db = getDb();
 
-    const clash = db
+    const clash = await db
       .prepare("SELECT email, username FROM users WHERE email = ? OR username = ?")
-      .get(body.email.toLowerCase(), body.username) as { email: string; username: string } | undefined;
+      .get<{ email: string; username: string }>(body.email.toLowerCase(), body.username);
     if (clash) {
       return jsonError(
         clash.email === body.email.toLowerCase()
@@ -31,15 +31,19 @@ export async function POST(req: NextRequest) {
 
     const id = newId("usr");
     const color = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
-    db.prepare(
-      `INSERT INTO users (id, email, username, password_hash, role, avatar_color, bio, wallet_balance, created_at)
-       VALUES (?, ?, ?, ?, 'PLAYER', ?, '', 0, ?)`
-    ).run(id, body.email.toLowerCase(), body.username, hashPassword(body.password), color, nowIso());
+    await db
+      .prepare(
+        `INSERT INTO users (id, email, username, password_hash, role, avatar_color, bio, wallet_balance, created_at)
+         VALUES (?, ?, ?, ?, 'PLAYER', ?, '', 0, ?)`
+      )
+      .run(id, body.email.toLowerCase(), body.username, hashPassword(body.password), color, nowIso());
 
-    db.prepare(
-      `INSERT INTO notifications (id, user_id, title, body, kind, read, created_at)
-       VALUES (?, ?, 'Welcome to KMR eSports', 'Your account is live. Grab a slot in any open tournament — first one is on us if you pick a free-entry cup.', 'system', 0, ?)`
-    ).run(newId("ntf"), id, nowIso());
+    await db
+      .prepare(
+        `INSERT INTO notifications (id, user_id, title, body, kind, read, created_at)
+         VALUES (?, ?, 'Welcome to KMR eSports', 'Your account is live. Grab a slot in any open tournament — first one is on us if you pick a free-entry cup.', 'system', 0, ?)`
+      )
+      .run(newId("ntf"), id, nowIso());
 
     await createSession({ id, username: body.username, role: "PLAYER" });
     return NextResponse.json({ ok: true, username: body.username });

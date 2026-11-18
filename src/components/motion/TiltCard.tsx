@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -16,10 +16,16 @@ export default function TiltCard({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState("perspective(900px) rotateX(0deg) rotateY(0deg)");
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    setEnabled(window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+  }, []);
 
   function onMove(e: React.MouseEvent) {
+    if (!enabled) return;
     const el = ref.current;
-    if (!el) return;
+    if (!el || !enabled) return;
     const rect = el.getBoundingClientRect();
     const px = (e.clientX - rect.left) / rect.width - 0.5;
     const py = (e.clientY - rect.top) / rect.height - 0.5;

@@ -1,139 +1,173 @@
-import { DatabaseSync, type StatementSync } from "node:sqlite";
-import path from "path";
-import fs from "fs";
-import crypto from "crypto";
+import { createClient, type Client, type InStatement, type InValue, type ResultSet } from "@libsql/client";
+import { AsyncLocalStorage } from "node:async_hooks";
+import path from "node:path";
+import fs from "node:fs";
+import crypto from "node:crypto";
 import { DDL } from "./schema";
 
 /**
- * Thin data layer over Node's built-in SQLite (node:sqlite).
- * Exposes the small, familiar prepare/get/all/run + transaction surface.
+ * Data layer over libSQL.
  *
- * On Vercel (read-only project filesystem) the seeded database is bundled at
- * build time (see `outputFileTracingIncludes` in next.config.mjs) and copied
- * to /tmp on cold start; if the bundle is missing the DB is seeded in place.
+ * - Local development: `file:./data/kmr.db` (default, zero config, offline).
+ * - Production (Vercel): set DATABASE_URL=libsql://<db>.turso.io and
+ *   DATABASE_AUTH_TOKEN — every serverless instance shares ONE persistent
+ *   hosted database, so accounts, registrations and payments never vanish
+ *   between requests.
+ *
+ * The public surface mirrors the old sync API (prepare → get/all/run) but is
+ * async, plus async transactions with ambient nesting: a `db.transaction()`
+ * called inside another transaction joins the ambient one instead of opening
+ * a nested BEGIN (which remote drivers reject).
  */
 
-const IS_VERCEL = process.env.VERCEL === "1";
+export type SqlParam = null | number | bigint | string | Uint8Array;
 
 const LOCAL_PATH = process.env.DATABASE_PATH?.startsWith("/")
   ? process.env.DATABASE_PATH
   : path.join(process.cwd(), process.env.DATABASE_PATH || "./data/kmr.db");
 
-const DB_PATH = IS_VERCEL ? "/tmp/kmr.db" : LOCAL_PATH;
+const DB_URL = process.env.DATABASE_URL || `file:${LOCAL_PATH}`;
+const IS_LOCAL_FILE = DB_URL.startsWith("file:");
 
-export type SqlParam = null | number | bigint | string | Uint8Array;
-export type SqlParams = SqlParam[] | Record<string, SqlParam>;
+function normalizeArgs(args: (SqlParam | Record<string, SqlParam>)[]): InValue[] | Record<string, InValue> {
+  // A single plain-object argument means named parameters (@id, @email, …).
+  if (
+    args.length === 1 &&
+    typeof args[0] === "object" &&
+    args[0] !== null &&
+    !Array.isArray(args[0]) &&
+    !(args[0] instanceof Uint8Array)
+  ) {
+    return args[0] as Record<string, InValue>;
+  }
+  return args as InValue[];
+}
 
 class Stmt {
-  constructor(private stmt: StatementSync) {}
-  run(...args: (SqlParam | Record<string, SqlParam>)[]) {
-    return this.stmt.run(...(args as never[]));
+  constructor(
+    private execFn: (s: InStatement) => Promise<ResultSet>,
+    private sql: string
+  ) {}
+
+  async run(...args: (SqlParam | Record<string, SqlParam>)[]) {
+    const rs = await this.execFn({ sql: this.sql, args: normalizeArgs(args) });
+    return { changes: Number(rs.rowsAffected), lastInsertRowid: rs.lastInsertRowid };
   }
-  get<T = unknown>(...args: (SqlParam | Record<string, SqlParam>)[]): T | undefined {
-    const row = this.stmt.get(...(args as never[]));
-    if (row === undefined || row === null) return undefined;
-    // node:sqlite rows have null prototypes — spread into plain objects so they
-    // can cross RSC → client component boundaries.
-    return { ...(row as object) } as T;
+
+  async get<T = unknown>(...args: (SqlParam | Record<string, SqlParam>)[]): Promise<T | undefined> {
+    const rs = await this.execFn({ sql: this.sql, args: normalizeArgs(args) });
+    const row = rs.rows[0];
+    // spread into a plain object so rows can cross RSC → client boundaries
+    return row ? ({ ...(row as object) } as T) : undefined;
   }
-  all<T = unknown>(...args: (SqlParam | Record<string, SqlParam>)[]): T[] {
-    const rows = this.stmt.all(...(args as never[]));
-    return rows.map((r) => ({ ...(r as object) }) as T);
+
+  async all<T = unknown>(...args: (SqlParam | Record<string, SqlParam>)[]): Promise<T[]> {
+    const rs = await this.execFn({ sql: this.sql, args: normalizeArgs(args) });
+    return rs.rows.map((r) => ({ ...(r as object) }) as T);
   }
 }
+
+const txStore = new AsyncLocalStorage<Db>();
 
 export class Db {
-  constructor(private inner: DatabaseSync) {}
+  constructor(private clientReady: Promise<Client>) {}
 
   prepare(sql: string): Stmt {
-    return new Stmt(this.inner.prepare(sql));
+    return new Stmt(async (s) => (await this.clientReady).execute(s), sql);
   }
 
-  exec(sql: string): void {
-    this.inner.exec(sql);
+  /** Execute one or more semicolon-separated statements (DDL, pragmas). */
+  async exec(sql: string): Promise<void> {
+    await (await this.clientReady).executeMultiple(sql);
   }
 
-  /** Synchronous, serialised transaction with savepoint-based nesting. */
-  private txDepth = 0;
+  /**
+   * Async serialised transaction. Nested calls (inside another transaction's
+   * async context) reuse the ambient transaction. In-process transactions are
+   * serialised behind a mutex; SQLITE_BUSY from the remote server is retried.
+   */
+  async transaction<T>(fn: (db: Db) => Promise<T>): Promise<T> {
+    const ambient = txStore.getStore();
+    if (ambient) return fn(ambient);
 
-  transaction<T>(fn: () => T): T {
-    if (this.txDepth > 0) {
-      const sp = `kmr_sp_${this.txDepth}`;
-      this.inner.exec(`SAVEPOINT ${sp}`);
-      this.txDepth++;
-      try {
-        const out = fn();
-        this.inner.exec(`RELEASE ${sp}`);
-        return out;
-      } catch (err) {
-        try {
-          this.inner.exec(`ROLLBACK TO ${sp}`);
-          this.inner.exec(`RELEASE ${sp}`);
-        } catch {
-          /* outer transaction will roll back */
-        }
-        throw err;
-      } finally {
-        this.txDepth--;
-      }
-    }
+    const prev = Db.mutex;
+    let release!: () => void;
+    Db.mutex = new Promise<void>((r) => (release = r));
+    await prev;
 
-    this.inner.exec("BEGIN IMMEDIATE");
-    this.txDepth++;
     try {
-      const out = fn();
-      this.inner.exec("COMMIT");
-      return out;
-    } catch (err) {
-      try {
-        this.inner.exec("ROLLBACK");
-      } catch {
-        /* already rolled back */
-      }
-      throw err;
+      return await withRetry(async () => {
+        const client = await this.clientReady;
+        const tx = await client.transaction("write");
+        const txDb = new Db(Promise.resolve(tx as unknown as Client));
+        try {
+          const out = await txStore.run(txDb, () => fn(txDb));
+          await tx.commit();
+          return out;
+        } catch (err) {
+          await tx.rollback().catch(() => {});
+          throw err;
+        }
+      });
     } finally {
-      this.txDepth--;
+      release();
     }
   }
+
+  private static mutex: Promise<void> = Promise.resolve();
 }
 
-/** On Vercel, hydrate the writable /tmp copy from the read-only build bundle. */
-function bootstrapDatabase(): void {
-  if (fs.existsSync(DB_PATH)) return;
-  const bundled = path.join(process.cwd(), "data", "kmr.db");
+async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!/busy|locked|deadlock/i.test(msg)) throw err;
+      await new Promise((r) => setTimeout(r, 60 * 2 ** i + Math.random() * 40));
+    }
+  }
+  throw lastErr;
+}
+
+let _init: Promise<Client> | null = null;
+
+function init(): Promise<Client> {
+  if (_init) return _init;
+  _init = (async () => {
+    if (IS_LOCAL_FILE) fs.mkdirSync(path.dirname(LOCAL_PATH), { recursive: true });
+    const client = createClient({
+      url: DB_URL,
+      authToken: process.env.DATABASE_AUTH_TOKEN || undefined,
+    });
+    await client.executeMultiple(DDL);
+    await maybeAutoSeed(new Db(Promise.resolve(client)));
+    return client;
+  })();
+  return _init;
+}
+
+async function maybeAutoSeed(db: Db): Promise<void> {
+  if (process.env.KMR_AUTOSEED === "0") return;
+  const row = await db.prepare("SELECT COUNT(*) c FROM users").get<{ c: number }>();
+  if (row && row.c > 0) return;
   try {
-    if (fs.existsSync(bundled)) fs.copyFileSync(bundled, DB_PATH);
+    const { seedCore } = await import("./seed-core");
+    console.log(`[KMR] empty database (${IS_LOCAL_FILE ? "local file" : "remote"}) — running seed…`);
+    await seedCore(db);
+    console.log("[KMR] seed complete");
   } catch (err) {
-    console.warn("[KMR] could not copy bundled database, will seed fresh", err);
+    // Concurrent cold starts may race the seed — unique constraints reject the
+    // duplicate run; the winner's data stands.
+    console.warn("[KMR] seed skipped (likely seeded concurrently):", (err as Error).message);
   }
 }
 
-function maybeAutoSeed(db: Db): void {
-  if (process.env.KMR_AUTOSEED === "0") return;
-  const c = (db.prepare("SELECT COUNT(*) c FROM users").get() as { c: number }).c;
-  if (c > 0) return;
-  // Lazy require to avoid a load-time circular import (seed-core imports ids from here).
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { seedCore } = require("./seed-core") as typeof import("./seed-core");
-  console.log("[KMR] empty database — running seed…");
-  seedCore(db);
-}
-
-let _db: Db | null = null;
-
+/** Returns the ambient transaction's Db when inside one, else the shared Db. */
 export function getDb(): Db {
-  if (_db) return _db;
-  if (IS_VERCEL) bootstrapDatabase();
-  else fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-  const inner = new DatabaseSync(DB_PATH);
-  inner.exec("PRAGMA journal_mode = WAL;");
-  inner.exec("PRAGMA foreign_keys = ON;");
-  inner.exec("PRAGMA busy_timeout = 5000;");
-  const db = new Db(inner);
-  db.exec(DDL);
-  maybeAutoSeed(db);
-  _db = db;
-  return db;
+  return txStore.getStore() ?? new Db(init());
 }
 
 export function newId(prefix: string): string {

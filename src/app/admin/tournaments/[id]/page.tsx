@@ -16,9 +16,9 @@ export const metadata = { title: "Manage tournament" };
 
 export default async function ManageTournamentPage({ params }: { params: { id: string } }) {
   await requireAdmin();
-  const t = getTournamentById(params.id);
+  const t = await getTournamentById(params.id);
   if (!t) notFound();
-  const registrations = getRegistrationsForTournament(t.id);
+  const registrations = await getRegistrationsForTournament(t.id);
   const completed = t.status === "COMPLETED";
 
   return (

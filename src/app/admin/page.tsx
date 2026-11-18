@@ -16,8 +16,7 @@ export const metadata = { title: "Admin" };
 
 export default async function AdminPage() {
   await requireAdmin();
-  const overview = getAdminOverview();
-  const tournaments = listTournaments({});
+  const [overview, tournaments] = await Promise.all([getAdminOverview(), listTournaments({})]);
 
   const cards = [
     { label: "Registered players", value: String(overview.players), icon: Users },

@@ -45,11 +45,11 @@ export async function getCurrentUser(): Promise<SafeUser | null> {
   const session = await getSession();
   if (!session) return null;
   const db = getDb();
-  const user = db
+  const user = await db
     .prepare(
       "SELECT id, email, username, role, avatar_color, bio, wallet_balance, created_at FROM users WHERE id = ?"
     )
-    .get(session.sub) as SafeUser | undefined;
+    .get<SafeUser>(session.sub);
   return user ?? null;
 }
 

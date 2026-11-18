@@ -1,13 +1,14 @@
 /**
  * Seed content for KMR eSports. Shared by the CLI (`npm run db:seed`) and the
  * serverless cold-start bootstrap on Vercel. Caller guarantees the users
- * table is empty.
+ * table is empty. Runs as one atomic transaction.
  */
 import bcrypt from "bcryptjs";
 import { newId, nowIso, type Db } from "./index";
 import { placementPoints, killPoints, CURRENT_SEASON } from "../lib/points";
 
-export function seedCore(db: Db): void {
+export async function seedCore(db: Db): Promise<void> {
+  await db.transaction(async (tx) => {
 
 const daysFromNow = (d: number, h = 0) =>
   new Date(Date.now() + d * 86400000 + h * 3600000).toISOString();
@@ -24,13 +25,14 @@ const AVATAR_COLORS = [
   "#f97316", "#e879f9", "#22d3ee", "#facc15", "#f87171", "#34d399",
 ];
 
-const insertUser = db.prepare(
-  `INSERT INTO users (id, email, username, password_hash, role, avatar_color, bio, wallet_balance, created_at)
-   VALUES (@id, @email, @username, @hash, @role, @color, @bio, 0, @now)`
-);
+const insertUser = (p: Record<string, unknown>) =>
+  tx.prepare(
+    `INSERT INTO users (id, email, username, password_hash, role, avatar_color, bio, wallet_balance, created_at)
+     VALUES (@id, @email, @username, @hash, @role, @color, @bio, 0, @now)`
+  ).run(p as never);
 
 const adminId = newId("usr");
-insertUser.run({
+await insertUser({
   id: adminId, email: ADMIN_EMAIL, username: "KMR_Admin", hash: adminHash,
   role: "ADMIN", color: "#fb7185", bio: "Tournament operations @ KMR eSports", now: nowIso(),
 });
@@ -47,7 +49,7 @@ const playerIds: string[] = [];
 for (let i = 0; i < playerNames.length; i++) {
   const id = newId("usr");
   playerIds.push(id);
-  insertUser.run({
+  await insertUser({
     id,
     email: `${playerNames[i].toLowerCase()}@players.kmr.gg`,
     username: playerNames[i],
@@ -60,10 +62,11 @@ for (let i = 0; i < playerNames.length; i++) {
 }
 
 // ---------------------------------------------------------------- games ----
-const insertGame = db.prepare(
-  `INSERT INTO games (id, name, slug, publisher, platforms, cover, accent, description, active)
-   VALUES (@id, @name, @slug, @publisher, @platforms, @cover, @accent, @description, 1)`
-);
+const insertGame = (p: Record<string, unknown>) =>
+  tx.prepare(
+    `INSERT INTO games (id, name, slug, publisher, platforms, cover, accent, description, active)
+     VALUES (@id, @name, @slug, @publisher, @platforms, @cover, @accent, @description, 1)`
+  ).run(p as never);
 
 const games = [
   {
@@ -97,18 +100,19 @@ const games = [
     description: "The definitive tactical FPS. Aim, economy, and nerves of steel.",
   },
 ];
-for (const g of games) insertGame.run(g as never);
+for (const g of games) await insertGame(g);
 
 // ----------------------------------------------------------- tournaments ----
 type PrizeSlice = { place: string; amount: number };
-const insertTournament = db.prepare(
-  `INSERT INTO tournaments (id, slug, title, game_id, description, rules, format, mode, map, platform,
-    entry_fee, prize_pool, prize_breakdown, per_kill_reward, max_slots, starts_at, ends_at, status,
-    room_id, room_password, stream_url, featured, created_by, created_at)
-   VALUES (@id, @slug, @title, @game_id, @description, @rules, @format, @mode, @map, @platform,
-    @entry_fee, @prize_pool, @prize_breakdown, @per_kill_reward, @max_slots, @starts_at, @ends_at, @status,
-    @room_id, @room_password, @stream_url, @featured, @created_by, @created_at)`
-);
+const insertTournament = (p: Record<string, unknown>) =>
+  tx.prepare(
+    `INSERT INTO tournaments (id, slug, title, game_id, description, rules, format, mode, map, platform,
+      entry_fee, prize_pool, prize_breakdown, per_kill_reward, max_slots, starts_at, ends_at, status,
+      room_id, room_password, stream_url, featured, created_by, created_at)
+     VALUES (@id, @slug, @title, @game_id, @description, @rules, @format, @mode, @map, @platform,
+      @entry_fee, @prize_pool, @prize_breakdown, @per_kill_reward, @max_slots, @starts_at, @ends_at, @status,
+      @room_id, @room_password, @stream_url, @featured, @created_by, @created_at)`
+  ).run(p as never);
 
 const STANDARD_RULES = [
   "Room ID & password are shared on your dashboard 15 minutes before start.",
@@ -280,54 +284,60 @@ const tournaments: Record<string, unknown>[] = [
 
 const tIds: Record<string, string> = {};
 for (const t of tournaments) {
-  insertTournament.run(t as never);
+  await insertTournament(t);
   tIds[t.slug as string] = t.id as string;
 }
 
 // ---------------------------------------------------- registrations etc. ----
-const insertReg = db.prepare(
-  `INSERT INTO registrations (id, tournament_id, user_id, team_name, ign, status, placement, kills, created_at)
-   VALUES (@id, @tournament_id, @user_id, @team_name, @ign, 'CONFIRMED', @placement, @kills, @created_at)`
-);
-const insertPayment = db.prepare(
-  `INSERT INTO payments (id, order_id, user_id, tournament_id, amount, currency, gateway, gateway_payment_id, signature, status, created_at, paid_at)
-   VALUES (@id, @order_id, @user_id, @tournament_id, @amount, 'INR', 'razorpay', @pid, @sig, 'PAID', @created_at, @paid_at)`
-);
-const insertEntry = db.prepare(
-  `INSERT INTO leaderboard_entries (id, user_id, tournament_id, season, placement, kills, placement_points, kill_points, bonus_points, total_points, prize_won, created_at)
-   VALUES (@id, @user_id, @tournament_id, @season, @placement, @kills, @pp, @kp, 0, @tp, @prize_won, @created_at)`
-);
-const insertMatch = db.prepare(
-  `INSERT INTO matches (id, tournament_id, round, label, scheduled_at, status, note)
-   VALUES (@id, @tournament_id, @round, @label, @scheduled_at, @status, '')`
-);
-const insertWallet = db.prepare(
-  `INSERT INTO wallet_transactions (id, user_id, amount, type, note, created_at) VALUES (@id, @user_id, @amount, @type, @note, @created_at)`
-);
-const insertNotif = db.prepare(
-  `INSERT INTO notifications (id, user_id, title, body, kind, read, created_at) VALUES (@id, @user_id, @title, @body, @kind, @read, @created_at)`
-);
-const bumpWallet = db.prepare("UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?");
+const insertReg = (p: Record<string, unknown>) =>
+  tx.prepare(
+    `INSERT INTO registrations (id, tournament_id, user_id, team_name, ign, status, placement, kills, created_at)
+     VALUES (@id, @tournament_id, @user_id, @team_name, @ign, 'CONFIRMED', @placement, @kills, @created_at)`
+  ).run(p as never);
+const insertPayment = (p: Record<string, unknown>) =>
+  tx.prepare(
+    `INSERT INTO payments (id, order_id, user_id, tournament_id, amount, currency, gateway, gateway_payment_id, signature, status, created_at, paid_at)
+     VALUES (@id, @order_id, @user_id, @tournament_id, @amount, 'INR', 'razorpay', @pid, @sig, 'PAID', @created_at, @paid_at)`
+  ).run(p as never);
+const insertEntry = (p: Record<string, unknown>) =>
+  tx.prepare(
+    `INSERT INTO leaderboard_entries (id, user_id, tournament_id, season, placement, kills, placement_points, kill_points, bonus_points, total_points, prize_won, created_at)
+     VALUES (@id, @user_id, @tournament_id, @season, @placement, @kills, @pp, @kp, 0, @tp, @prize_won, @created_at)`
+  ).run(p as never);
+const insertMatch = (p: Record<string, unknown>) =>
+  tx.prepare(
+    `INSERT INTO matches (id, tournament_id, round, label, scheduled_at, status, note)
+     VALUES (@id, @tournament_id, @round, @label, @scheduled_at, @status, '')`
+  ).run(p as never);
+const insertWallet = (p: Record<string, unknown>) =>
+  tx.prepare(
+    `INSERT INTO wallet_transactions (id, user_id, amount, type, note, created_at) VALUES (@id, @user_id, @amount, @type, @note, @created_at)`
+  ).run(p as never);
+const insertNotif = (p: Record<string, unknown>) =>
+  tx.prepare(
+    `INSERT INTO notifications (id, user_id, title, body, kind, read, created_at) VALUES (@id, @user_id, @title, @body, @kind, @read, @created_at)`
+  ).run(p as never);
+const bumpWallet = (amount: number, userId: string) =>
+  tx.prepare("UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?").run(amount, userId);
 
-const rnd = (arr: number[]) => arr[Math.floor(Math.random() * arr.length)];
 let seed = 42;
 const srand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
 
 const TEAM_SUFFIX = ["Esports", "Gaming", "Syndicate", "Clan", "Nation", "Rebels", "Titans", "Crew"];
 const teamName = (name: string) => `${name} ${TEAM_SUFFIX[Math.floor(srand() * TEAM_SUFFIX.length)]}`;
 
-function registerUserFor(userId: string, username: string, slug: string, opts: {
+async function registerUserFor(userId: string, username: string, slug: string, opts: {
   paid: boolean; entryFee: number; team?: boolean; placement?: number | null; kills?: number; daysAgo?: number;
 }) {
   const tid = tIds[slug];
   const created = daysFromNow(-(opts.daysAgo ?? 3));
-  insertReg.run({
+  await insertReg({
     id: newId("reg"), tournament_id: tid, user_id: userId,
     team_name: opts.team ? teamName(username) : null, ign: username,
     placement: opts.placement ?? null, kills: opts.kills ?? 0, created_at: created,
   });
   if (opts.paid && opts.entryFee > 0) {
-    insertPayment.run({
+    await insertPayment({
       id: newId("pay"), order_id: `order_seed_${newId("o").slice(2, 12)}`,
       user_id: userId, tournament_id: tid, amount: opts.entryFee,
       pid: `pay_seed_${newId("p").slice(2, 12)}`, sig: "seed",
@@ -338,39 +348,39 @@ function registerUserFor(userId: string, username: string, slug: string, opts: {
 }
 
 // completed tournaments → final standings + prizes
-function finalizeTournament(slug: string, participantIds: string[], prizeMap: Record<number, number>, daysAgo: number) {
+async function finalizeTournament(slug: string, participantIds: string[], prizeMap: Record<number, number>, daysAgo: number) {
   const tid = tIds[slug];
   const t = tournaments.find((x) => x.slug === slug)! as { entry_fee: number; title: string; prize_breakdown: string };
   const breakdown = JSON.parse(t.prize_breakdown as string) as PrizeSlice[];
-  participantIds.forEach((uid, i) => {
+  for (const [i, uid] of participantIds.entries()) {
     const placement = i + 1;
     const kills = Math.floor(srand() * 9);
-    const user = db.prepare("SELECT username FROM users WHERE id = ?").get(uid) as { username: string };
-    registerUserFor(uid, user.username, slug, {
+    const user = (await tx.prepare("SELECT username FROM users WHERE id = ?").get<{ username: string }>(uid))!;
+    await registerUserFor(uid, user.username, slug, {
       paid: t.entry_fee > 0, entryFee: t.entry_fee, team: true, placement, kills, daysAgo,
     });
     const prize = prizeMap[placement] ?? 0;
-    insertEntry.run({
+    await insertEntry({
       id: newId("lbe"), user_id: uid, tournament_id: tid, season: CURRENT_SEASON,
       placement, kills, pp: placementPoints(placement), kp: killPoints(kills),
       tp: placementPoints(placement) + killPoints(kills), prize_won: prize, created_at: daysFromNow(-daysAgo),
     });
-    db.prepare("UPDATE registrations SET placement = ?, kills = ? WHERE tournament_id = ? AND user_id = ?")
+    await tx.prepare("UPDATE registrations SET placement = ?, kills = ? WHERE tournament_id = ? AND user_id = ?")
       .run(placement, kills, tid, uid);
     if (prize > 0) {
-      bumpWallet.run(prize, uid);
-      insertWallet.run({
+      await bumpWallet(prize, uid);
+      await insertWallet({
         id: newId("wtx"), user_id: uid, amount: prize, type: "PRIZE_CREDIT",
         note: `${breakdown.find((b) => b.place === ordinal(placement))?.place ?? ordinal(placement)} place — ${t.title}`,
         created_at: daysFromNow(-daysAgo),
       });
-      insertNotif.run({
+      await insertNotif({
         id: newId("ntf"), user_id: uid, title: "Prize credited",
         body: `₹${(prize / 100).toLocaleString("en-IN")} from ${t.title} hit your KMR wallet. GG!`,
         kind: "prize", read: 0, created_at: daysFromNow(-daysAgo),
       });
     }
-  });
+  }
 }
 
 function ordinal(n: number) {
@@ -378,13 +388,13 @@ function ordinal(n: number) {
 }
 
 // Pro League finals — 16 players, prizes to top 3 + MVP (4th)
-finalizeTournament("bgmi-pro-league-s7-grand-finals", playerIds.slice(0, 16), { 1: 2500000, 2: 1200000, 3: 700000, 4: 600000 }, 14);
+await finalizeTournament("bgmi-pro-league-s7-grand-finals", playerIds.slice(0, 16), { 1: 2500000, 2: 1200000, 3: 700000, 4: 600000 }, 14);
 // Community Clash — 8 players
-finalizeTournament("valorant-community-clash-4", playerIds.slice(8, 16), { 1: 350000, 2: 150000, 3: 100000 }, 7);
+await finalizeTournament("valorant-community-clash-4", playerIds.slice(8, 16), { 1: 350000, 2: 150000, 3: 100000 }, 7);
 // Domination Derby — 10 players
-finalizeTournament("codm-domination-derby", playerIds.slice(16, 26), { 1: 220000, 2: 120000, 3: 60000 }, 20);
+await finalizeTournament("codm-domination-derby", playerIds.slice(16, 26), { 1: 220000, 2: 120000, 3: 60000 }, 20);
 
-// live + upcoming crowd registrations
+// crowd registrations for live/upcoming tournaments
 const crowdTargets: [string, number, boolean][] = [
   ["bgmi-winter-clash-championship", 76, true],
   ["valorant-neon-nights-premier", 21, true],
@@ -406,62 +416,63 @@ const feeBySlug: Record<string, number> = {
 for (const [slug, count, team] of crowdTargets) {
   for (let i = 0; i < count; i++) {
     const uid = playerIds[Math.floor(srand() * playerIds.length)];
-    const exists = db
-      .prepare("SELECT 1 FROM registrations WHERE tournament_id = ? AND user_id = ?")
+    const exists = await tx
+      .prepare("SELECT 1 x FROM registrations WHERE tournament_id = ? AND user_id = ?")
       .get(tIds[slug], uid);
     if (exists) continue;
-    const user = db.prepare("SELECT username FROM users WHERE id = ?").get(uid) as { username: string };
-    registerUserFor(uid, user.username, slug, {
+    const user = (await tx.prepare("SELECT username FROM users WHERE id = ?").get<{ username: string }>(uid))!;
+    await registerUserFor(uid, user.username, slug, {
       paid: feeBySlug[slug] > 0, entryFee: feeBySlug[slug], team, daysAgo: Math.floor(srand() * 4),
     });
   }
 }
 
 // provisional standings for the live CODM tournament (mid-tournament points table)
-(function liveStandings() {
+{
   const tid = tIds["codm-sniper-only-showdown"];
-  const regs = db
+  const regs = await tx
     .prepare("SELECT r.user_id, u.username FROM registrations r JOIN users u ON u.id = r.user_id WHERE r.tournament_id = ? LIMIT 12")
-    .all(tid) as { user_id: string; username: string }[];
-  regs.forEach((r, i) => {
+    .all<{ user_id: string; username: string }>(tid);
+  for (const [i, r] of regs.entries()) {
     const kills = Math.max(0, 11 - i + Math.floor(srand() * 3));
     const placement = i < 8 ? i + 1 : null;
-    insertEntry.run({
+    await insertEntry({
       id: newId("lbe"), user_id: r.user_id, tournament_id: tid, season: CURRENT_SEASON,
       placement, kills, pp: placementPoints(placement), kp: killPoints(kills),
       tp: placementPoints(placement) + killPoints(kills), prize_won: 0, created_at: daysFromNow(0, -2),
     });
-  });
-})();
+  }
+}
 
 // matches schedule for live & upcoming tournaments
-function seedMatches(slug: string, defs: [string, string, number, string][]) {
+async function seedMatches(slug: string, defs: [string, string, number, string][]) {
   for (const [round, label, offsetH, status] of defs) {
-    insertMatch.run({
+    await insertMatch({
       id: newId("mch"), tournament_id: tIds[slug], round, label,
       scheduled_at: daysFromNow(0, offsetH), status,
     });
   }
 }
-seedMatches("codm-sniper-only-showdown", [
+await seedMatches("codm-sniper-only-showdown", [
   ["Round 1", "Lobby A — Standoff", -3, "COMPLETED"],
   ["Round 1", "Lobby B — Crossfire", -2, "COMPLETED"],
   ["Round 2", "Winners Lobby — Standoff", 0, "LIVE"],
   ["Round 3", "Grand Final — Crossfire", 4, "SCHEDULED"],
 ]);
-seedMatches("cs2-aim-gods-arena", [
+await seedMatches("cs2-aim-gods-arena", [
   ["Upper Bracket", "UB Semifinal 1 — Mirage", 0, "LIVE"],
   ["Upper Bracket", "UB Semifinal 2 — Inferno", 1, "SCHEDULED"],
   ["Lower Bracket", "LB Round 1 — Nuke", 5, "SCHEDULED"],
 ]);
-seedMatches("bgmi-winter-clash-championship", [
+await seedMatches("bgmi-winter-clash-championship", [
   ["Day 1", "Map 1 — Erangel", 53, "SCHEDULED"],
   ["Day 1", "Map 2 — Erangel", 54, "SCHEDULED"],
   ["Day 1", "Map 3 — Erangel", 55, "SCHEDULED"],
 ]);
-seedMatches("valorant-neon-nights-premier", [
+await seedMatches("valorant-neon-nights-premier", [
   ["Bracket", "Round of 32 — Ascent", 126, "SCHEDULED"],
   ["Bracket", "Round of 16 — Bind", 130, "SCHEDULED"],
 ]);
 
+  });
 }
