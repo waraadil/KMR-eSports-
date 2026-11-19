@@ -7,6 +7,7 @@ import Reveal from "@/components/motion/Reveal";
 import ResultsForm from "@/components/admin/ResultsForm";
 import MatchManager, { type MatchRow } from "@/components/admin/MatchManager";
 import RoomControl from "@/components/admin/RoomControl";
+import DeleteTournamentButton from "@/components/admin/DeleteTournamentButton";
 import StatusControl from "@/components/admin/StatusControl";
 import { requireAdmin } from "@/lib/auth";
 import { getDb } from "@/db";
@@ -103,6 +104,7 @@ export default async function ManageTournamentPage({ params }: { params: { id: s
             >
               View public page
             </Link>
+            <DeleteTournamentButton tournamentId={t.id} title={t.title} redirectTo="/admin" />
           </Reveal>
 
           <Reveal delay={0.1} className="card min-w-0 p-7 md:p-8">

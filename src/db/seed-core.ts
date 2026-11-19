@@ -80,6 +80,11 @@ export async function purgeDemoData(
   const tIds = tRows.rows.map((r) => r.id as string);
   if (tIds.length > 0) {
     const ph = tIds.map(() => "?").join(",");
+    // per-map scores hang off matches, not tournaments — remove them first
+    stmts.push({
+      sql: `DELETE FROM match_results WHERE match_id IN (SELECT id FROM matches WHERE tournament_id IN (${ph}))`,
+      args: [...tIds],
+    });
     for (const table of ["registrations", "matches", "leaderboard_entries", "payments"]) {
       stmts.push({ sql: `DELETE FROM ${table} WHERE tournament_id IN (${ph})`, args: [...tIds] });
     }
@@ -93,7 +98,25 @@ export async function purgeDemoData(
   const uIds = uRows.rows.map((r) => r.id as string);
   if (uIds.length > 0) {
     const ph = uIds.map(() => "?").join(",");
-    for (const table of ["registrations", "leaderboard_entries", "wallet_transactions", "notifications", "payments"]) {
+    // FK-safe order: messages before their threads, children before parents.
+    // Messages in a bot's thread may have been sent by admins, so match by
+    // thread as well as by sender.
+    stmts.push({
+      sql: `DELETE FROM support_messages WHERE sender_id IN (${ph})
+            OR thread_id IN (SELECT id FROM support_threads WHERE user_id IN (${ph}))`,
+      args: [...uIds, ...uIds],
+    });
+    for (const table of [
+      "support_threads",
+      "registrations",
+      "leaderboard_entries",
+      "wallet_transactions",
+      "notifications",
+      "payments",
+      "withdrawals",
+      "password_resets",
+      "match_results",
+    ]) {
       stmts.push({ sql: `DELETE FROM ${table} WHERE user_id IN (${ph})`, args: [...uIds] });
     }
     stmts.push({ sql: `DELETE FROM users WHERE id IN (${ph})`, args: [...uIds] });
