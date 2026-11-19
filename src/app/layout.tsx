@@ -9,6 +9,7 @@ import "@fontsource/chakra-petch/700.css";
 import "./globals.css";
 import { getCurrentUser } from "@/lib/auth";
 import Navbar from "@/components/site/Navbar";
+import RefreshOnFocus from "@/components/site/RefreshOnFocus";
 import Footer from "@/components/site/Footer";
 import ServiceWorker from "@/components/site/ServiceWorker";
 
@@ -53,6 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {children}
         <Footer />
         <ServiceWorker />
+        <RefreshOnFocus />
       </body>
     </html>
   );

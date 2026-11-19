@@ -78,10 +78,11 @@ export default async function ManageTournamentPage({ params }: { params: { id: s
                 <div className="flex justify-between"><span className="text-zinc-500">Room</span><span className="font-tech text-[12px] text-zinc-300">{t.room_id ?? "not set"}</span></div>
               </div>
             </div>
-            <Reveal delay={0.09} className="card p-6">
-              <p className="flex items-center gap-2 font-tech text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                <Radio size={13} className="text-accent" /> Room &amp; stream
-              </p>
+            <div id="room" className="scroll-mt-28">
+              <Reveal delay={0.09} className="card p-6">
+                <p className="flex items-center gap-2 font-tech text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                  <Radio size={13} className="text-accent" /> Room &amp; stream
+                </p>
               <p className="mt-2 mb-4 text-[12px] text-zinc-500">
                 Create the custom room in-game, paste the details here, then publish — registered
                 players get notified and see the credentials on the tournament page.
@@ -94,7 +95,8 @@ export default async function ManageTournamentPage({ params }: { params: { id: s
                 registrantCount={registrations.length}
                 locked={completed}
               />
-            </Reveal>
+              </Reveal>
+            </div>
             <Link
               href={`/tournaments/${t.slug}`}
               className="btn-ghost block rounded-full py-3.5 text-center font-tech text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-300"

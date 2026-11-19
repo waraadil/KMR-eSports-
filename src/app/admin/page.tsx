@@ -121,6 +121,12 @@ export default async function AdminPage() {
                         <Link href={`/admin/tournaments/${t.id}`} className="text-[13.5px] font-semibold text-white hover:text-accent">
                           {t.title}
                         </Link>
+                        <Link
+                          href={`/admin/tournaments/${t.id}#room`}
+                          className="mt-0.5 block font-tech text-[9.5px] uppercase tracking-[0.14em] text-zinc-500 transition-colors hover:text-accent"
+                        >
+                          Room ID / pass →
+                        </Link>
                       </td>
                       <td className="px-4 py-4 text-[12.5px] text-zinc-400">{t.game_name}</td>
                       <td className="px-4 py-4 text-[12.5px] text-zinc-400">{formatDateTime(t.starts_at)}</td>
