@@ -63,21 +63,40 @@ const DEMO_USER_EMAIL_LIKE = "%@players.kmr.gg";
 export async function purgeDemoData(
   client: Client,
   opts: { force?: boolean } = {}
-): Promise<{ tournaments: number; botUsers: number; alreadyDone: boolean }> {
+): Promise<{ tournaments: number; botUsers: number; alreadyDone: boolean; titles: string[] }> {
   await client.execute("CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
   if (!opts.force) {
-    const done = await client.execute("SELECT value FROM _meta WHERE key = 'demo_purge_v1'");
-    if (done.rows.length > 0) return { tournaments: 0, botUsers: 0, alreadyDone: true };
+    const done = await client.execute("SELECT value FROM _meta WHERE key = 'demo_purge_v2'");
+    if (done.rows.length > 0) return { tournaments: 0, botUsers: 0, alreadyDone: true, titles: [] };
   }
 
   const stmts: InStatement[] = [];
 
-  const slugPh = DEMO_TOURNAMENT_SLUGS.map(() => "?").join(",");
+  // Prefix match: re-seeds and series editions suffix the base slug
+  // ("Free Fire Booyah Blitz #12" -> free-fire-booyah-blitz-12) and exact
+  // matching silently misses them forever.
+  const likeClause = DEMO_TOURNAMENT_SLUGS.map(() => "slug LIKE ?").join(" OR ");
   const tRows = await client.execute({
-    sql: `SELECT id FROM tournaments WHERE slug IN (${slugPh})`,
-    args: [...DEMO_TOURNAMENT_SLUGS],
+    sql: `SELECT id, title FROM tournaments WHERE ${likeClause}`,
+    args: DEMO_TOURNAMENT_SLUGS.map((s) => `${s}%`),
   });
-  const tIds = tRows.rows.map((r) => r.id as string);
+  const deletedTitles: string[] = [];
+  const tIds: string[] = [];
+  for (const row of tRows.rows) {
+    const id = row.id as string;
+    // Safety: never delete a tournament that has registrations from real
+    // (non-demo) players, no matter how demo-ish its name looks.
+    const real = await client.execute({
+      sql: `SELECT COUNT(*) AS n FROM registrations r
+            JOIN users u ON u.id = r.user_id
+            WHERE r.tournament_id = ? AND u.email NOT LIKE ?`,
+      args: [id, DEMO_USER_EMAIL_LIKE],
+    });
+    if (Number(real.rows[0]?.n ?? 0) === 0) {
+      tIds.push(id);
+      deletedTitles.push(row.title as string);
+    }
+  }
   if (tIds.length > 0) {
     const ph = tIds.map(() => "?").join(",");
     // per-map scores hang off matches, not tournaments — remove them first
@@ -123,14 +142,14 @@ export async function purgeDemoData(
   }
 
   stmts.push({
-    sql: "INSERT OR REPLACE INTO _meta (key, value) VALUES ('demo_purge_v1', ?)",
+    sql: "INSERT OR REPLACE INTO _meta (key, value) VALUES ('demo_purge_v2', ?)",
     args: [new Date().toISOString()],
   });
   await client.batch(stmts, "write");
   if (tIds.length > 0 || uIds.length > 0) {
     console.log(`[KMR] demo data purged — ${tIds.length} sample tournaments, ${uIds.length} bot players removed`);
   }
-  return { tournaments: tIds.length, botUsers: uIds.length, alreadyDone: false };
+  return { tournaments: tIds.length, botUsers: uIds.length, alreadyDone: false, titles: deletedTitles };
 }
 
 export async function seedCore(db: DbLike): Promise<void> {
