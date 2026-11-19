@@ -16,11 +16,12 @@ export default function PurgeDemoButton() {
       const res = await fetch("/api/admin/purge-demo", { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Purge failed");
-      setMsg(
-        data.tournaments === 0 && data.botUsers === 0
-          ? "Already clean — no demo content found."
-          : `Removed ${data.tournaments} sample tournaments and ${data.botUsers} bot players.`
-      );
+      if (data.tournaments === 0 && data.botUsers === 0) {
+        setMsg("Already clean — no demo content found. If any leftover tournament remains, use the trash icon on its row.");
+      } else {
+        const names = Array.isArray(data.titles) && data.titles.length ? ` (${data.titles.join(", ")})` : "";
+        setMsg(`Removed ${data.tournaments} sample tournaments and ${data.botUsers} bot players${names}.`);
+      }
       router.refresh();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Purge failed");
