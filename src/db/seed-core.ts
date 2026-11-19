@@ -82,6 +82,7 @@ export async function purgeDemoData(
   });
   const deletedTitles: string[] = [];
   const tIds: string[] = [];
+  const seen = new Set<string>();
   for (const row of tRows.rows) {
     const id = row.id as string;
     // Safety: never delete a tournament that has registrations from real
@@ -92,7 +93,34 @@ export async function purgeDemoData(
             WHERE r.tournament_id = ? AND u.email NOT LIKE ?`,
       args: [id, DEMO_USER_EMAIL_LIKE],
     });
-    if (Number(real.rows[0]?.n ?? 0) === 0) {
+    if (Number(real.rows[0]?.n ?? 0) === 0 && !seen.has(id)) {
+      seen.add(id);
+      tIds.push(id);
+      deletedTitles.push(row.title as string);
+    }
+  }
+
+  // Root-cause net, independent of names: any tournament whose registrations
+  // are 100% demo bots is demo content, whatever it is called. A tournament
+  // with even one real player registration is never touched.
+  const botOnlyRows = await client.execute({
+    sql: `SELECT t.id, t.title FROM tournaments t
+          WHERE EXISTS (
+            SELECT 1 FROM registrations r
+            JOIN users u ON u.id = r.user_id
+            WHERE r.tournament_id = t.id AND u.email LIKE ?
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM registrations r
+            JOIN users u ON u.id = r.user_id
+            WHERE r.tournament_id = t.id AND u.email NOT LIKE ?
+          )`,
+    args: [DEMO_USER_EMAIL_LIKE, DEMO_USER_EMAIL_LIKE],
+  });
+  for (const row of botOnlyRows.rows) {
+    const id = row.id as string;
+    if (!seen.has(id)) {
+      seen.add(id);
       tIds.push(id);
       deletedTitles.push(row.title as string);
     }
