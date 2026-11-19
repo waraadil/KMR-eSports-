@@ -108,6 +108,14 @@ export default function RoomControl({
         />
       </div>
 
+      {initialRoomId && (
+        <p className="rounded-lg border border-accent/25 bg-accent-soft/30 px-3 py-2 font-tech text-[11px] text-accent">
+          Live now: ID {initialRoomId}
+          {initialRoomPassword ? ` · Pass ${initialRoomPassword}` : ""} — visible to registered players
+          on the tournament page
+        </p>
+      )}
+
       {!locked && (
         <div className="flex flex-col gap-2 pt-1">
           <button
