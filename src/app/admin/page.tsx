@@ -7,6 +7,7 @@ import Section from "@/components/site/Section";
 import Reveal from "@/components/motion/Reveal";
 import StatusControl from "@/components/admin/StatusControl";
 import PurgeDemoButton from "@/components/admin/PurgeDemoButton";
+import DeleteTournamentButton from "@/components/admin/DeleteTournamentButton";
 import WithdrawalsPanel, { type WithdrawalRow } from "@/components/admin/WithdrawalsPanel";
 import { getDb } from "@/db";
 import { requireAdmin } from "@/lib/auth";
@@ -140,8 +141,9 @@ export default async function AdminPage() {
                         {t.entry_fee === 0 ? "Free" : formatINR(t.entry_fee)}
                       </td>
                       <td className="px-7 py-4">
-                        <div className="flex justify-end">
+                        <div className="flex items-center justify-end gap-2">
                           <StatusControl tournamentId={t.id} current={t.status} />
+                          <DeleteTournamentButton tournamentId={t.id} title={t.title} compact />
                         </div>
                       </td>
                     </tr>

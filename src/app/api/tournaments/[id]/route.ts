@@ -90,3 +90,34 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return handleRouteError(err);
   }
 }
+
+/** Admin: permanently delete a tournament and everything attached to it. */
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const session = await getSession();
+    if (!session || (session.role !== "ADMIN" && session.role !== "ORGANIZER")) {
+      return jsonError("Organizer access required.", 403);
+    }
+    const db = getDb();
+    const t = await db.prepare("SELECT id FROM tournaments WHERE id = ?").get(params.id);
+    if (!t) return jsonError("Tournament not found.", 404);
+
+    await db.transaction(async (tx) => {
+      // per-map scores hang off matches, not the tournament — remove first
+      await tx
+        .prepare(
+          "DELETE FROM match_results WHERE match_id IN (SELECT id FROM matches WHERE tournament_id = ?)"
+        )
+        .run(params.id);
+      await tx.prepare("DELETE FROM matches WHERE tournament_id = ?").run(params.id);
+      await tx.prepare("DELETE FROM registrations WHERE tournament_id = ?").run(params.id);
+      await tx.prepare("DELETE FROM leaderboard_entries WHERE tournament_id = ?").run(params.id);
+      await tx.prepare("DELETE FROM payments WHERE tournament_id = ?").run(params.id);
+      await tx.prepare("DELETE FROM tournaments WHERE id = ?").run(params.id);
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return handleRouteError(err);
+  }
+}
